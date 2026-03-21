@@ -1,32 +1,46 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 /**
- * BookingService — handles court availability and pricing logic
+ * Check if a slot is free using a DB-level lock to prevent race conditions.
+ * Must be called inside a prisma.$transaction interactive block.
  */
-
-class BookingService {
-  /**
-   * Check if a court is available for the given time range
-   * @param {string} courtId
-   * @param {Date} startTime
-   * @param {Date} endTime
-   * @returns {boolean} availability
-   */
-  async checkAvailability(courtId, startTime, endTime) {
-    // TODO: implement
-    throw new Error('Not implemented');
-  }
-
-  /**
-   * Compute the total price for a booking, considering peak hours and credits
-   * @param {string} courtId
-   * @param {Date} startTime
-   * @param {Date} endTime
-   * @param {number} creditsUsed
-   * @returns {number} totalPrice
-   */
-  async computePrice(courtId, startTime, endTime, creditsUsed = 0) {
-    // TODO: implement
-    throw new Error('Not implemented');
-  }
+async function checkAvailability(prismaClient, courtId, startTime, endTime) {
+  const conflicts = await prismaClient.$queryRaw`
+    SELECT id FROM "Booking"
+    WHERE "courtId" = ${courtId}::uuid
+    AND status = 'confirmed'
+    AND "startTime" < ${new Date(endTime)}
+    AND "endTime" > ${new Date(startTime)}
+    FOR UPDATE
+  `;
+  return conflicts.length === 0;
 }
 
-module.exports = new BookingService();
+/**
+ * Calculate slot price based on court peak hours config.
+ */
+function computePrice(court, startTime) {
+  const dt = new Date(startTime);
+  const hour = dt.getHours();
+  const dayIndex = dt.getDay(); // 0=Sun, 1=Mon...
+  const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const dayName = dayNames[dayIndex];
+  const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+
+  const peakHours = Array.isArray(court.peakHours) ? court.peakHours : [];
+
+  const isPeak = peakHours.some((ph) => {
+    const inDay =
+      ph.day === 'MON-FRI' ? weekdays.includes(dayName) : ph.day === dayName;
+    const [startH] = ph.start.split(':').map(Number);
+    const [endH] = ph.end.split(':').map(Number);
+    return inDay && hour >= startH && hour < endH;
+  });
+
+  const base = Number(court.basePrice);
+  const multiplier = isPeak ? Number(court.peakMultiplier) : 1;
+  return Math.round(base * multiplier * 100) / 100;
+}
+
+module.exports = { checkAvailability, computePrice };
