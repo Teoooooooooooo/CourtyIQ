@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { mockPass, mockLoyalty, mockBookings } from '../mocks/index'
 import client from '../api/client'
+import { useAuthStore } from '../store/authStore'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
@@ -23,6 +24,8 @@ export default function PassPage() {
   const [loyalty, setLoyalty] = useState(null)
   const [history, setHistory] = useState([])
   const [toast, setToast] = useState(null)
+  const refreshTrigger = useAuthStore(s => s.refreshTrigger)
+  const triggerRefresh = useAuthStore(s => s.triggerRefresh)
 
   useEffect(() => {
     if (USE_MOCKS) {
@@ -33,8 +36,11 @@ export default function PassPage() {
     }
     client.get('/pass/me').then(r => setPass(r.data)).catch(() => {})
     client.get('/loyalty/me').then(r => setLoyalty(r.data)).catch(() => {})
-    client.get('/users/me/bookings').then(r => setHistory(r.data.slice(0, 5))).catch(() => {})
-  }, [])
+    client.get('/users/me/bookings').then(r => {
+      const active = r.data.filter(b => b.status === 'confirmed')
+      setHistory(active.slice(0, 5))
+    }).catch(() => {})
+  }, [refreshTrigger])
 
   const handleSubscribe = async (tier) => {
     if (USE_MOCKS) {
@@ -53,9 +59,22 @@ export default function PassPage() {
     }
   }
 
-  const showToast = (msg) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 2500)
+  const handleCancel = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+    
+    if (USE_MOCKS) {
+      triggerRefresh()
+      showToast('Booking cancelled (mock)')
+      return
+    }
+
+    try {
+      await client.delete(`/bookings/${bookingId}`)
+      triggerRefresh()
+      showToast('Booking cancelled successfully')
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Cancellation failed')
+    }
   }
 
   const tierIndex = LOYALTY_TIERS.indexOf(loyalty?.tier || 'bronze')
@@ -237,10 +256,17 @@ export default function PassPage() {
                       {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {b.creditsUsed} credits used
                     </p>
                   </div>
-                  {b.result && (
+                  {b.result ? (
                     <span className={`text-sm font-bold ${b.result === 'win' ? 'text-[#00C47D]' : 'text-red-400'}`}>
                       {b.result === 'win' ? 'W' : 'L'}
                     </span>
+                  ) : (
+                    <button 
+                      onClick={() => handleCancel(b.id)}
+                      className="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-tight bg-red-50 px-2 py-1 rounded"
+                    >
+                      Cancel
+                    </button>
                   )}
                 </div>
               )

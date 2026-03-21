@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { mockUser, mockBookings, mockAiSuggestion } from '../mocks/index'
 import { formatDateTime } from '../utils/format'
 import client from '../api/client'
+import { useAuthStore } from '../store/authStore'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
@@ -12,6 +13,34 @@ export default function HomePage() {
   const [nextBooking, setNextBooking] = useState(null)
   const [upcomingBookings, setUpcomingBookings] = useState([])
   const [aiSuggestion, setAiSuggestion] = useState(null)
+  const [toast, setToast] = useState(null)
+  const refreshTrigger = useAuthStore(s => s.refreshTrigger)
+  const triggerRefresh = useAuthStore(s => s.triggerRefresh)
+
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const handleCancel = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+    
+    if (USE_MOCKS) {
+      setUpcomingBookings(prev => prev.filter(b => b.id !== bookingId))
+      if (nextBooking?.id === bookingId) setNextBooking(null)
+      triggerRefresh()
+      showToast('Booking cancelled (mock)')
+      return
+    }
+
+    try {
+      await client.delete(`/bookings/${bookingId}`)
+      triggerRefresh()
+      showToast('Booking cancelled successfully')
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Cancellation failed')
+    }
+  }
 
   useEffect(() => {
     if (USE_MOCKS) {
@@ -25,7 +54,7 @@ export default function HomePage() {
     Promise.all([
       client.get('/users/me').then(r => {
         const s = r.data.profile?.stats || r.data.stats || r.data
-        setStats(s)
+        setStats({ ...s, loyaltyTotal: r.data.loyaltyTotal })
       }),
       client.get('/users/me/bookings').then(r => {
         const upcoming = r.data.filter(
@@ -38,7 +67,7 @@ export default function HomePage() {
         .then(r => setAiSuggestion(r.data.slot))
         .catch(() => setAiSuggestion(null)),
     ])
-  }, [])
+  }, [refreshTrigger])
 
   const winRate = stats
     ? Math.round((stats.wins / (stats.wins + stats.losses)) * 100)
@@ -143,10 +172,17 @@ export default function HomePage() {
                     <p className="text-sm font-semibold text-[#0d1b2a] truncate">{b.court.club.name}</p>
                     <p className="text-xs text-slate-400">{b.court.name} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                  {b.result && (
+                  {b.result ? (
                     <span className={`text-sm font-bold ${b.result === 'win' ? 'text-[#00C47D]' : 'text-red-400'}`}>
                       {b.result === 'win' ? 'W' : 'L'}
                     </span>
+                  ) : (
+                    <button 
+                      onClick={() => handleCancel(b.id)}
+                      className="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-tight bg-red-50 px-2 py-1 rounded"
+                    >
+                      Cancel
+                    </button>
                   )}
                 </div>
               )
@@ -154,6 +190,12 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0d1b2a] text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-lg z-50">
+          {toast}
+        </div>
+      )}
 
     </div>
   )

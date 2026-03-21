@@ -1,0 +1,20 @@
+On branch main
+Your branch and 'origin/main' have diverged,
+and have 1 and 1 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   frontend/build_output.txt
+	new file:   frontend/install_output.txt
+	new file:   frontend/src/components/AppHeader.jsx
+	new file:   frontend/src/components/BottomNav.jsx
+	new file:   frontend/src/components/Protected.jsx
+	new file:   frontend/src/mocks/index.js
+	new file:   frontend/src/utils/format.js
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	git_status.txt
+	git_status_cmd.txt
+

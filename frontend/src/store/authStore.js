@@ -6,9 +6,14 @@ export const useAuthStore = create(
     (set) => ({
       token: null,
       user: null,
+      refreshTrigger: 0,
       login: (token, user) => set({ token, user }),
       logout: () => set({ token: null, user: null }),
+      triggerRefresh: () => set((state) => ({ refreshTrigger: state.refreshTrigger + 1 })),
     }),
-    { name: 'courtiq-auth' }
+    { 
+      name: 'courtiq-auth',
+      partialize: (state) => ({ token: state.token, user: state.user }),
+    }
   )
 );
