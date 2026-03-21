@@ -1,0 +1,8 @@
+{
+  "id": "sub-demo",
+  "userId": "demo-user-id",
+  "tier": "pro",
+  "creditsTotal": 20,
+  "creditsRemaining": 18,
+  "renewsAt": "2026-04-21T00:00:00Z"
+}

@@ -1,0 +1,12 @@
+[
+  { "id": "slot-1", "startTime": "2026-03-22T08:00:00Z", "endTime": "2026-03-22T09:30:00Z", "available": true, "price": 12 },
+  { "id": "slot-2", "startTime": "2026-03-22T09:30:00Z", "endTime": "2026-03-22T11:00:00Z", "available": true, "price": 12 },
+  { "id": "slot-3", "startTime": "2026-03-22T11:00:00Z", "endTime": "2026-03-22T12:30:00Z", "available": false, "price": 12 },
+  { "id": "slot-4", "startTime": "2026-03-22T12:30:00Z", "endTime": "2026-03-22T14:00:00Z", "available": true, "price": 12 },
+  { "id": "slot-5", "startTime": "2026-03-22T14:00:00Z", "endTime": "2026-03-22T15:30:00Z", "available": true, "price": 12 },
+  { "id": "slot-6", "startTime": "2026-03-22T15:30:00Z", "endTime": "2026-03-22T17:00:00Z", "available": true, "price": 12 },
+  { "id": "slot-7", "startTime": "2026-03-22T17:00:00Z", "endTime": "2026-03-22T18:30:00Z", "available": false, "price": 18 },
+  { "id": "slot-8", "startTime": "2026-03-22T18:30:00Z", "endTime": "2026-03-22T20:00:00Z", "available": true, "price": 18 },
+  { "id": "slot-9", "startTime": "2026-03-22T20:00:00Z", "endTime": "2026-03-22T21:30:00Z", "available": true, "price": 18 },
+  { "id": "slot-10", "startTime": "2026-03-22T21:30:00Z", "endTime": "2026-03-22T23:00:00Z", "available": true, "price": 12 }
+]

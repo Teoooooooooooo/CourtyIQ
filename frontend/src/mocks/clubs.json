@@ -1,0 +1,38 @@
+[
+  {
+    "id": "club-1",
+    "name": "Padel City Arena",
+    "address": "Str. Sporturilor 12, Bucharest",
+    "lat": 44.46,
+    "lng": 26.10,
+    "courts": [
+      { "id": "court-1a", "name": "Court 1", "type": "outdoor", "basePrice": 8 },
+      { "id": "court-1b", "name": "Court 2", "type": "indoor", "basePrice": 15 },
+      { "id": "court-1c", "name": "Court 3", "type": "outdoor", "basePrice": 22 }
+    ]
+  },
+  {
+    "id": "club-2",
+    "name": "Smash Club",
+    "address": "Bd. Unirii 45, Bucharest",
+    "lat": 44.47,
+    "lng": 26.09,
+    "courts": [
+      { "id": "court-2a", "name": "Court 1", "type": "outdoor", "basePrice": 10 },
+      { "id": "court-2b", "name": "Court 2", "type": "indoor", "basePrice": 18 },
+      { "id": "court-2c", "name": "Court 3", "type": "indoor", "basePrice": 20 }
+    ]
+  },
+  {
+    "id": "club-3",
+    "name": "Arena Pro",
+    "address": "Calea Victoriei 100, Bucharest",
+    "lat": 44.45,
+    "lng": 26.08,
+    "courts": [
+      { "id": "court-3a", "name": "Court 1", "type": "outdoor", "basePrice": 12 },
+      { "id": "court-3b", "name": "Court 2", "type": "indoor", "basePrice": 16 },
+      { "id": "court-3c", "name": "Court 3", "type": "outdoor", "basePrice": 14 }
+    ]
+  }
+]

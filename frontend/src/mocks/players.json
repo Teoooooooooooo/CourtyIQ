@@ -1,0 +1,7 @@
+[
+  { "id": "p1", "name": "Player 1", "email": "player1@test.com", "eloRating": 1050, "skillLevel": 3.2, "playStyle": "all-court" },
+  { "id": "p2", "name": "Player 2", "email": "player2@test.com", "eloRating": 920, "skillLevel": 2.8, "playStyle": "aggressive" },
+  { "id": "p3", "name": "Player 3", "email": "player3@test.com", "eloRating": 1200, "skillLevel": 4.1, "playStyle": "defensive" },
+  { "id": "p4", "name": "Player 4", "email": "player4@test.com", "eloRating": 870, "skillLevel": 2.5, "playStyle": "net-rusher" },
+  { "id": "p5", "name": "Player 5", "email": "player5@test.com", "eloRating": 1100, "skillLevel": 3.6, "playStyle": "baseline" }
+]

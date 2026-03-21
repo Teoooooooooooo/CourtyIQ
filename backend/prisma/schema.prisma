@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime  @default(now())
+  profile      PlayerProfile?
+  bookings     Booking[]
+  loyalty      LoyaltyPoint[]
+  subscription Subscription?
+}
+
+model PlayerProfile {
+  id         String  @id @default(uuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id])
+  skillLevel Decimal @default(3.0)
+  eloRating  Int     @default(1000)
+  playStyle  String  @default("all-court")
+  location   String?
+  stats      Json    @default("{\"wins\":0,\"losses\":0,\"lastFive\":[]}")
+}
+
+model Club {
+  id      String  @id @default(uuid())
+  name    String
+  address String
+  lat     Decimal
+  lng     Decimal
+  courts  Court[]
+}
+
+model Court {
+  id             String    @id @default(uuid())
+  clubId         String
+  club           Club      @relation(fields: [clubId], references: [id])
+  name           String
+  type           String    @default("outdoor")
+  basePrice      Decimal
+  peakMultiplier Decimal   @default(1.5)
+  peakHours      Json      @default("[]")
+  bookings       Booking[]
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+  courtId         String
+  court           Court    @relation(fields: [courtId], references: [id])
+  organizerId     String
+  organizer       User     @relation(fields: [organizerId], references: [id])
+  startTime       DateTime
+  endTime         DateTime
+  status          String   @default("pending")
+  totalPrice      Decimal
+  stripePaymentId String?
+  creditsUsed     Int      @default(0)
+  playerIds       Json     @default("[]")
+  createdAt       DateTime @default(now())
+}
+
+model Waitlist {
+  id        String   @id @default(uuid())
+  courtId   String
+  userId    String
+  slotStart DateTime
+  position  Int
+  createdAt DateTime @default(now())
+}
+
+model Match {
+  id         String   @id @default(uuid())
+  bookingId  String?
+  team1Ids   Json
+  team2Ids   Json
+  winnerTeam Int
+  eloDelta   Json     @default("{}")
+  createdAt  DateTime @default(now())
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  tier             String    @default("basic")
+  creditsTotal     Int       @default(10)
+  creditsRemaining Int       @default(10)
+  renewsAt         DateTime?
+}
+
+model LoyaltyPoint {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  points    Int
+  reason    String
+  createdAt DateTime @default(now())
+}
