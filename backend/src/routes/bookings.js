@@ -183,20 +183,34 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       data: { status: 'cancelled' },
     });
 
-    // Trigger waitlist: notify first person in queue
-    const { broadcastToUser } = require('./courts');
-    const waitlistEntry = await prisma.waitlist.findFirst({
+    // Trigger waitlist: notify ALL users in queue, then remove their entries
+    const waitlistEntries = await prisma.waitlist.findMany({
       where: {
         courtId: booking.courtId,
         slotStart: booking.startTime,
-        position: 1,
       },
+      include: {
+        court: { include: { club: true } }
+      }
     });
 
-    if (waitlistEntry) {
-      broadcastToUser(waitlistEntry.userId, 'slot_available', {
-        courtId: booking.courtId,
-        slotStart: booking.startTime,
+    if (waitlistEntries.length > 0) {
+      // Create DB notifications for each waitlisted user
+      const notificationsData = waitlistEntries.map(entry => ({
+        userId: entry.userId,
+        type: 'waitlist_available',
+        title: 'Slot Now Available!',
+        message: `A slot at ${entry.court.club.name} – ${entry.court.name} (${new Date(booking.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}) is now free. Book it before someone else does!`,
+        data: { courtId: booking.courtId, slotStart: booking.startTime }
+      }));
+      await prisma.notification.createMany({ data: notificationsData });
+
+      // Delete all waitlist entries so the slot disappears from their upcoming bookings
+      await prisma.waitlist.deleteMany({
+        where: {
+          courtId: booking.courtId,
+          slotStart: booking.startTime,
+        }
       });
     }
 
