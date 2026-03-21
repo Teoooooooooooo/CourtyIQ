@@ -6,12 +6,14 @@ const authenticate = require('../middleware/authenticate');
 const { checkAvailability, computePrice } = require('../services/BookingService');
 const LoyaltyService = require('../services/LoyaltyService');
 const { broadcastToCourtSubscribers } = require('./courts');
+const { v4: uuidv4 } = require('uuid');
 
 // ── POST /api/v1/bookings — Create a booking ────────────
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const { courtId, startTime, endTime, playerIds = [] } = req.body;
     const organizerId = req.user.userId;
+    const bookingId = uuidv4();
 
     // 1. Fetch court (need peakHours for price calc)
     const court = await prisma.court.findUnique({ where: { id: courtId } });
@@ -26,18 +28,37 @@ router.post('/', authenticate, async (req, res, next) => {
     });
     const hasCredits = subscription && subscription.creditsRemaining > 0;
 
-    let stripePaymentId = null;
-    let clientSecret = null;
+    let stripeSessionId = null;
+    let checkoutUrl = null;
 
-    // 4. If no credits → create Stripe PaymentIntent
+    // 4. If no credits → create Stripe Checkout Session
     if (!hasCredits) {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(totalPrice * 100), // Stripe uses cents
-        currency: 'eur',
-        metadata: { courtId, organizerId },
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/cancel`,
+        client_reference_id: organizerId,
+        metadata: {
+          userId: organizerId,
+          bookingId: bookingId,
+        },
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              unit_amount: Math.round(totalPrice * 100),
+              product_data: {
+                name: 'Court Booking',
+                description: `Date: ${new Date(startTime).toLocaleString()}`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
       });
-      stripePaymentId = paymentIntent.id;
-      clientSecret = paymentIntent.client_secret;
+      stripeSessionId = session.id;
+      checkoutUrl = session.url;
     }
 
     // 5. Transaction: check availability + create booking
@@ -51,13 +72,14 @@ router.post('/', authenticate, async (req, res, next) => {
 
       const newBooking = await tx.booking.create({
         data: {
+          id: bookingId,
           courtId,
           organizerId,
           startTime: new Date(startTime),
           endTime: new Date(endTime),
           status: hasCredits ? 'confirmed' : 'pending',
           totalPrice,
-          stripePaymentId,
+          stripePaymentId: stripeSessionId, // Store session ID here temporarily
           creditsUsed: hasCredits ? 1 : 0,
           playerIds: [organizerId, ...playerIds],
         },
@@ -93,10 +115,10 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
-    // 6. Return clientSecret for Stripe
+    // 6. Return Checkout URL for Stripe
     res.status(201).json({
       bookingId: booking.id,
-      clientSecret,
+      url: checkoutUrl,
       totalPrice,
       isPaidWithCredits: false,
     });

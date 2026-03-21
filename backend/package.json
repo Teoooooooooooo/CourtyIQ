@@ -17,7 +17,8 @@
     "express": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
     "openai": "^4.28.0",
-    "stripe": "^14.17.0"
+    "stripe": "^14.17.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

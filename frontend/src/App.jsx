@@ -7,6 +7,8 @@ import HomePage from './pages/HomePage';
 import CourtsPage from './pages/CourtsPage';
 import SocialPage from './pages/SocialPage';
 import PassPage from './pages/PassPage';
+import SuccessPage from './pages/SuccessPage';
+import CancelPage from './pages/CancelPage';
 
 function ProtectedRoute({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -48,6 +50,22 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PassPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/success"
+        element={
+          <ProtectedRoute>
+            <SuccessPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cancel"
+        element={
+          <ProtectedRoute>
+            <CancelPage />
           </ProtectedRoute>
         }
       />

@@ -24,16 +24,22 @@ router.post(
       return res.status(400).send(`Webhook error: ${err.message}`);
     }
 
-    if (event.type === 'payment_intent.succeeded') {
-      const pi = event.data.object;
-      const booking = await prisma.booking.findFirst({
-        where: { stripePaymentId: pi.id },
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const bookingId = session.metadata.bookingId;
+      const paymentIntentId = session.payment_intent;
+
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
       });
 
       if (booking && booking.status === 'pending') {
         await prisma.booking.update({
           where: { id: booking.id },
-          data: { status: 'confirmed' },
+          data: { 
+            status: 'confirmed',
+            stripePaymentId: paymentIntentId 
+          },
         });
         await LoyaltyService.awardPoints(
           booking.organizerId,
