@@ -28,6 +28,24 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
   const [error, setError] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState(null)
 
+  const [playerSearch, setPlayerSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [invitedPlayers, setInvitedPlayers] = useState([])
+
+  useEffect(() => {
+    if (playerSearch.length < 2) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      client.get(`/users/search?q=${playerSearch}`).then(r => {
+        const invitedIds = invitedPlayers.map(p => p.id)
+        setSearchResults(r.data.filter(u => !invitedIds.includes(u.id)))
+      }).catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [playerSearch, invitedPlayers])
+
   const handleBook = async () => {
     if (USE_MOCKS) {
       onSuccess('Booking confirmed! (mock)')
@@ -41,7 +59,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         courtId: court.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        playerIds: [],
+        playerIds: invitedPlayers.map(p => p.id),
         useCredits: paymentMethod === 'credits',
       })
 
@@ -89,6 +107,27 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
     }
   }
 
+  const handleWaitlist = async () => {
+    if (USE_MOCKS) {
+      onSuccess('Added to waitlist! (mock)')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      await client.post('/waitlist', {
+        courtId: court.id,
+        slotStart: slot.startTime,
+      })
+      onSuccess("You've been added to the waitlist!")
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to join waitlist')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-t-2xl p-6 w-full max-w-[430px] animate-slide-up"
@@ -115,8 +154,52 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
           </div>
         </div>
 
-        {/* Payment Buttons / Options */}
+        {/* Add Players */}
         {!paymentMethod && (
+          <div className="mb-4 animate-fade-in relative z-20">
+            <p className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Add Players (Optional)</p>
+            
+            <div className="flex flex-wrap gap-2 mb-2">
+              {invitedPlayers.map(p => (
+                <div key={p.id} className="bg-slate-100 border border-slate-200 text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all">
+                  {p.name}
+                  <button onClick={() => setInvitedPlayers(prev => prev.filter(u => u.id !== p.id))} className="text-slate-400 hover:text-red-400 ml-1 scale-125">×</button>
+                </div>
+              ))}
+            </div>
+
+            {invitedPlayers.length < 3 && (
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={playerSearch}
+                  onChange={e => setPlayerSearch(e.target.value)}
+                  placeholder="Search by name..." 
+                  className="w-full bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#00C47D] transition-colors"
+                />
+                {searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg max-h-32 overflow-y-auto w-full z-50">
+                    {searchResults.map(u => (
+                      <button key={u.id} onClick={() => {
+                        setInvitedPlayers(prev => [...prev, u])
+                        setPlayerSearch('')
+                        setSearchResults([])
+                      }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors">
+                        <span className="font-semibold text-[#0d1b2a]">{u.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                          Lvl {Number(u.profile?.skillLevel || 3).toFixed(1)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payment Buttons / Options */}
+        {!paymentMethod && slot.status !== 'booked' && (
           <div className="flex flex-col gap-3">
             <button onClick={() => setPaymentMethod('card')} className="w-full border-2 border-[#0d1b2a] text-[#0d1b2a] font-bold rounded-xl py-3 hover:bg-slate-50 transition-colors">
               Pay in RON
@@ -129,7 +212,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         )}
 
         {/* Card Input Box (only if Pay in RON selected) */}
-        {paymentMethod === 'card' && !USE_MOCKS && (
+        {!USE_MOCKS && slot.status !== 'booked' && paymentMethod === 'card' && (
           <div className="border border-slate-200 rounded-lg p-3 mb-4 animate-fade-in">
             <CardElement options={{
               style: {
@@ -146,7 +229,18 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         {error && <p className="text-red-500 text-sm mb-3 text-center animate-fade-in">{error}</p>}
 
         {/* Action Buttons */}
-        {paymentMethod && (
+        {slot.status === 'booked' ? (
+          <div className="animate-fade-in">
+            <button onClick={handleWaitlist} disabled={loading}
+              className="w-full bg-orange-100 text-orange-700 font-bold rounded-xl py-3 border border-orange-200 transition-opacity text-sm disabled:opacity-50">
+              {loading ? 'Processing...' : 'Add me to Waitlist'}
+            </button>
+            <button onClick={onClose}
+              className="w-full text-slate-400 text-sm mt-3 py-2 hover:text-slate-600 transition-colors">
+              Cancel
+            </button>
+          </div>
+        ) : paymentMethod && (
           <div className="animate-fade-in">
             <button onClick={handleBook} disabled={loading}
               className="w-full bg-[#00C47D] text-[#0d1b2a] font-bold rounded-xl py-3 disabled:opacity-50 transition-opacity text-sm">
@@ -164,7 +258,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
           </div>
         )}
 
-        {!paymentMethod && (
+        {!paymentMethod && slot.status !== 'booked' && (
           <button onClick={onClose}
             className="w-full text-slate-400 text-sm mt-2 py-2">
             Cancel
@@ -350,7 +444,6 @@ export default function CourtsPage() {
   }
 
   const handleSlotClick = (slot) => {
-    if (slot.status === 'booked' || slot.status === 'past') return
     setSelectedSlot(slot)
     setShowModal(true)
   }
@@ -469,13 +562,13 @@ export default function CourtsPage() {
                       {slots.map(slot => {
                         const isPast = slot.status === 'past'
                         const isBooked = slot.status === 'booked'
-                        const disabled = isPast || isBooked
+                        const disabled = isPast // Only past slots are truly disabled from interaction
                         return (
                           <button key={slot.id} disabled={disabled}
                             onClick={() => handleSlotClick(slot)}
                             className={`px-2 py-2 rounded-xl text-xs font-semibold border-2 transition-all text-center
-                              ${isBooked
-                                ? 'bg-red-50 text-red-300 border-red-100 line-through cursor-not-allowed'
+                              ${slot.status === 'booked'
+                                ? 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 cursor-pointer'
                                 : isPast
                                   ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed opacity-40'
                                   : slot.isPeak
