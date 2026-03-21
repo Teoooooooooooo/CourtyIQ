@@ -10,6 +10,12 @@ const prisma = new PrismaClient();
 
 const TIERS = { basic: 10, pro: 20, elite: 40 };
 
+function getPerks(tier) {
+    return tier === 'elite' ? ['Free court upgrade', 'Priority waitlist', 'Free racket rental'] :
+           tier === 'pro' ? ['Free court upgrade', 'Priority waitlist'] :
+           ['Free court upgrade'];
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/v1/pass/me
 // ---------------------------------------------------------------------------
@@ -19,14 +25,10 @@ router.get('/me', authenticate, async (req, res, next) => {
         const sub = await prisma.subscription.findUnique({ where: { userId } });
 
         if (!sub) {
-            return res.json({ tier: null, creditsRemaining: 0, creditsTotal: 0, renewsAt: null, perks: [] });
+            return res.json({ tier: null, creditsRemaining: 0, creditsTotal: 0, renewsAt: null, perks: [], pendingTier: null });
         }
 
-        const perks = sub.tier === 'elite' ? ['Free court upgrade', 'Priority waitlist', 'Free racket rental'] :
-                      sub.tier === 'pro' ? ['Free court upgrade', 'Priority waitlist'] :
-                      ['Free court upgrade'];
-
-        res.json({ ...sub, perks });
+        res.json({ ...sub, perks: getPerks(sub.tier) });
     } catch (err) {
         next(err);
     }
@@ -35,6 +37,7 @@ router.get('/me', authenticate, async (req, res, next) => {
 // ---------------------------------------------------------------------------
 // POST /api/v1/pass/subscribe
 // Body: { tier: "basic" | "pro" | "elite" }
+// Deferred: the new plan only activates after the current billing period ends.
 // ---------------------------------------------------------------------------
 router.post('/subscribe', authenticate, async (req, res, next) => {
     try {
@@ -45,21 +48,50 @@ router.post('/subscribe', authenticate, async (req, res, next) => {
             return res.status(400).json({ error: `tier must be one of: ${Object.keys(TIERS).join(', ')}` });
         }
 
-        const credits = TIERS[tier];
-        const renewsAt = new Date();
-        renewsAt.setDate(renewsAt.getDate() + 30);
+        const existing = await prisma.subscription.findUnique({ where: { userId } });
 
-        const subscription = await prisma.subscription.upsert({
+        // If user has no subscription yet, create one immediately
+        if (!existing) {
+            const credits = TIERS[tier];
+            const renewsAt = new Date();
+            renewsAt.setDate(renewsAt.getDate() + 30);
+
+            const subscription = await prisma.subscription.create({
+                data: { userId, tier, creditsTotal: credits, creditsRemaining: credits, renewsAt },
+            });
+
+            return res.status(200).json({
+                ...subscription,
+                perks: getPerks(tier),
+                message: `Subscribed to ${tier} plan!`
+            });
+        }
+
+        // If already on this tier, no change needed
+        if (existing.tier === tier) {
+            return res.status(200).json({
+                ...existing,
+                perks: getPerks(existing.tier),
+                pendingTier: null,
+                message: `You are already on the ${tier} plan.`
+            });
+        }
+
+        // Otherwise, defer the change — set pendingTier, keep current credits unchanged
+        const subscription = await prisma.subscription.update({
             where: { userId },
-            create: { userId, tier, creditsTotal: credits, creditsRemaining: credits, renewsAt },
-            update: { tier, creditsTotal: credits, creditsRemaining: credits, renewsAt },
+            data: { pendingTier: tier },
         });
 
-        const perks = subscription.tier === 'elite' ? ['Free court upgrade', 'Priority waitlist', 'Free racket rental'] :
-                      subscription.tier === 'pro' ? ['Free court upgrade', 'Priority waitlist'] :
-                      ['Free court upgrade'];
+        const renewsDate = subscription.renewsAt
+            ? new Date(subscription.renewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            : 'the next billing cycle';
 
-        res.status(200).json({ ...subscription, perks });
+        res.status(200).json({
+            ...subscription,
+            perks: getPerks(subscription.tier),
+            message: `Your ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan will start on ${renewsDate}. Until then, your current credits remain unchanged.`
+        });
     } catch (err) {
         next(err);
     }

@@ -30,8 +30,8 @@ export default function SocialPage() {
       setChallenges(mockChallenges)
       return
     }
-    client.get('/ai/partner-matches').then(r => setPartnerMatches(r.data.matches)).catch(() => {})
-    client.get('/social/challenges/incoming').then(r => setChallenges(r.data)).catch(() => {})
+    client.get('/ai/partner-matches').then(r => setPartnerMatches(r.data.matches || [])).catch(() => {})
+    client.get('/social/challenges/incoming').then(r => setChallenges(r.data.challenges || r.data || [])).catch(() => {})
   }, [])
 
   const handlePlayerClick = (match) => {
@@ -100,7 +100,8 @@ export default function SocialPage() {
           </div>
         )}
         {partnerMatches.map(match => {
-          const colors = getAvatarColor(match.profile.name)
+          const profile = match.profile || {}
+          const colors = getAvatarColor(profile.name || 'Unknown User')
           const isSelected = selectedPlayer?.userId === match.userId
           return (
             <div key={match.userId}
@@ -110,13 +111,13 @@ export default function SocialPage() {
               <div className="p-4 flex items-center gap-3">
                 {/* Avatar */}
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-condensed font-extrabold text-base flex-shrink-0 ${colors.bg} ${colors.text}`}>
-                  {getInitials(match.profile.name)}
+                  {getInitials(profile.name || 'Unknown User')}
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#0d1b2a] text-sm">{match.profile.name}</p>
+                  <p className="font-semibold text-[#0d1b2a] text-sm">{profile.name || 'Unknown User'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Level {match.profile.skillLevel} · {match.profile.playStyle} · {match.profile.location}
+                    Level {profile.skillLevel || '?'} · {profile.playStyle || '?'} · {profile.location || '?'}
                   </p>
                   <p className="text-xs text-slate-400 italic mt-1 truncate">"{match.reason}"</p>
                 </div>
@@ -189,23 +190,24 @@ export default function SocialPage() {
             Incoming challenges
           </p>
           <div className="flex flex-col gap-2">
-            {challenges.map(c => {
-              const colors = getAvatarColor(c.challenger.name)
+            {Array.isArray(challenges) && challenges.map(c => {
+              const challengerName = c.challenger?.name || c.fromUserName || 'Unknown Player'
+              const colors = getAvatarColor(challengerName)
               const d = new Date(c.proposedTime)
               return (
                 <div key={c.id} className="bg-white border border-slate-200 rounded-xl p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-condensed font-bold text-sm flex-shrink-0 ${colors.bg} ${colors.text}`}>
-                      {getInitials(c.challenger.name)}
+                      {getInitials(challengerName)}
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-[#0d1b2a] text-sm">{c.challenger.name}</p>
+                      <p className="font-semibold text-[#0d1b2a] text-sm">{challengerName}</p>
                       <p className="text-xs text-slate-400">
                         {d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 italic mb-3">"{c.message}"</p>
+                  <p className="text-xs text-slate-500 italic mb-3">"{c.message || 'Challenge received!'}"</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => respondToChallenge(c.id, 'accept')}

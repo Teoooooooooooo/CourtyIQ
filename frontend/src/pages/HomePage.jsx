@@ -30,7 +30,7 @@ export default function HomePage() {
       client.get('/users/me/bookings').then(r => {
         const upcoming = r.data.filter(
           b => b.status === 'confirmed' && new Date(b.startTime) > new Date()
-        )
+        ).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
         setNextBooking(upcoming[0] || null)
         setUpcomingBookings(upcoming.slice(0, 3))
       }),
@@ -64,10 +64,12 @@ export default function HomePage() {
           </div>
         )}
         <div className="flex gap-2">
-          <button onClick={() => navigate('/courts')}
-            className="bg-[#00C47D] text-[#0d1b2a] font-semibold text-sm px-4 py-2 rounded-lg">
-            Book court
-          </button>
+          {!nextBooking && (
+            <button onClick={() => navigate('/courts')}
+              className="bg-[#00C47D] text-[#0d1b2a] font-semibold text-sm px-4 py-2 rounded-lg">
+              Book court
+            </button>
+          )}
           <button onClick={() => navigate('/pass')}
             className="bg-white/10 text-white border border-white/20 text-sm px-4 py-2 rounded-lg">
             My Pass

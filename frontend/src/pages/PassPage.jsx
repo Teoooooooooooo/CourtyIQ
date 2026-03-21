@@ -43,9 +43,9 @@ export default function PassPage() {
       return
     }
     try {
-      await client.post('/pass/subscribe', { tier })
-      showToast(`Subscribed to ${tier} plan!`)
-      // Reload pass data
+      const res = await client.post('/pass/subscribe', { tier })
+      showToast(res.data.message || `Plan change to ${tier} scheduled!`)
+      // Reload pass data to reflect pendingTier
       const r = await client.get('/pass/me')
       setPass(r.data)
     } catch {
@@ -109,19 +109,29 @@ export default function PassPage() {
           Change plan
         </p>
         <div className="flex gap-2">
-          {Object.entries(TIERS).map(([tier, info]) => (
+          {Object.entries(TIERS).map(([tier, info]) => {
+            const isCurrent = pass?.tier === tier
+            const isPending = pass?.pendingTier === tier
+            return (
             <button key={tier} onClick={() => handleSubscribe(tier)}
-              className={`flex-1 py-3 px-2 rounded-xl border text-xs font-semibold transition-all active:scale-95
-                ${pass?.tier === tier
+              className={`flex-1 py-3 px-2 rounded-xl border text-xs font-semibold transition-all active:scale-95 relative
+                ${isCurrent
                   ? 'bg-[#0d1b2a] text-white border-[#0d1b2a]'
-                  : 'border-slate-200 text-slate-600 bg-white hover:border-[#00C47D]'}`}>
+                  : isPending
+                    ? 'border-[#00C47D] text-[#00a066] bg-[#e6faf3]'
+                    : 'border-slate-200 text-slate-600 bg-white hover:border-[#00C47D]'}`}>
+              {isPending && (
+                <span className="absolute -top-2 -right-2 bg-[#00C47D] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  Next
+                </span>
+              )}
               {tier.charAt(0).toUpperCase() + tier.slice(1)}
               <br />
               <span className="font-normal text-[11px] opacity-70">
                 {info.credits} credits · €{info.price}/mo
               </span>
             </button>
-          ))}
+          )})}
         </div>
       </div>
 

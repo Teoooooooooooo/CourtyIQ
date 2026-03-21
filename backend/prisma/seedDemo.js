@@ -30,7 +30,7 @@ async function main() {
   for (const c of clubsData) {
     const club = await prisma.club.create({ data: c });
     createdClubs.push(club);
-    
+
     // 3 courts per club (15 total)
     await prisma.court.create({
       data: {
@@ -53,16 +53,16 @@ async function main() {
   }
 
   // 20 Players
-  const firstNames = ['Andrei','Alexandru','Mihai','Ionut','Florin','Stefan','Marian','Cristian','Gabriel','Bogdan','Radu','Vlad','Cosmin','Constantin','Nicolae','Gheorghe','Vasile','Daniel','Catalin','Adrian'];
-  const lastNames = ['Popescu','Radu','Ionescu','Dumitrescu','Stan','Gheorghe','Matei','Ciobanu','Marin','Mihai','Nistor','Toma','Oprea','Lupu','Ilie','Diaconu','Barbu','Mocanu','Petrescu','Dima'];
+  const firstNames = ['Andrei', 'Alexandru', 'Mihai', 'Ionut', 'Florin', 'Stefan', 'Marian', 'Cristian', 'Gabriel', 'Bogdan', 'Radu', 'Vlad', 'Cosmin', 'Constantin', 'Nicolae', 'Gheorghe', 'Vasile', 'Daniel', 'Catalin', 'Adrian'];
+  const lastNames = ['Popescu', 'Radu', 'Ionescu', 'Dumitrescu', 'Stan', 'Gheorghe', 'Matei', 'Ciobanu', 'Marin', 'Mihai', 'Nistor', 'Toma', 'Oprea', 'Lupu', 'Ilie', 'Diaconu', 'Barbu', 'Mocanu', 'Petrescu', 'Dima'];
 
   const passwordHash = await bcrypt.hash('password123', 10);
   const createdPlayers = [];
-  
+
   for (let i = 0; i < 20; i++) {
     const p = await prisma.user.create({
       data: {
-        email: `player${i+1}@test.com`,
+        email: `player${i + 1}@test.com`,
         name: `${firstNames[i]} ${lastNames[i]}`,
         passwordHash,
         profile: {
@@ -94,11 +94,11 @@ async function main() {
           eloRating: 1140,
           playStyle: 'aggressive',
           location: 'Floreasca',
-          stats: { wins: 16, losses: 8, lastFive: ["W","W","L","W","W"] }
+          stats: { wins: 16, losses: 8, lastFive: ["W", "W", "L", "W", "W"] }
         }
       },
       subscription: {
-        create: { tier: 'pro', creditsTotal: 20, creditsRemaining: 18 }
+        create: { tier: 'pro', creditsTotal: 20, creditsRemaining: 20 }
       }
     }
   });
@@ -112,8 +112,8 @@ async function main() {
   });
 
   // Upcoming Bookings for Demo
-  const outdoorCourt = await prisma.court.findFirst({ where: { type: 'outdoor' }});
-  
+  const outdoorCourt = await prisma.court.findFirst({ where: { type: 'outdoor' } });
+
   const futureDates = [2, 4, 6]; // March 22, 24, 26 simulation (or relative future dates)
   for (const dOffset of futureDates) {
     const st = new Date();
@@ -141,7 +141,7 @@ async function main() {
       data: {
         // demo is in team 1
         team1Ids: [demoUser.id, createdPlayers[m % 10].id],
-        team2Ids: [createdPlayers[(m+1) % 10].id, createdPlayers[(m+2) % 10].id],
+        team2Ids: [createdPlayers[(m + 1) % 10].id, createdPlayers[(m + 2) % 10].id],
         winnerTeam: m % 3 === 0 ? 2 : 1, // Wins ~66% of the time
         eloDelta: { [demoUser.id]: m % 3 === 0 ? -15 : 20 },
         createdAt: new Date(Date.now() - (30 - m) * 86400000)

@@ -174,6 +174,8 @@ export default function CourtsPage() {
   const [priceOracle, setPriceOracle] = useState(null)
   const [toast, setToast] = useState(null)
   const [mapCenter, setMapCenter] = useState([44.47, 26.09])
+  const [showModal, setShowModal] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState(null)
   const sseRef = useRef(null)
 
   useEffect(() => {

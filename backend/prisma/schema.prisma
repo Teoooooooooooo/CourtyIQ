@@ -101,6 +101,7 @@ model Subscription {
   userId           String    @unique
   user             User      @relation(fields: [userId], references: [id])
   tier             String    @default("basic")
+  pendingTier      String?
   creditsTotal     Int       @default(10)
   creditsRemaining Int       @default(10)
   renewsAt         DateTime?
