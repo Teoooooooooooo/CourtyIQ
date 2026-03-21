@@ -16,6 +16,7 @@ export default function HomePage() {
   const [toast, setToast] = useState(null)
   const refreshTrigger = useAuthStore(s => s.refreshTrigger)
   const triggerRefresh = useAuthStore(s => s.triggerRefresh)
+  const user = useAuthStore(s => s.user)
 
   const showToast = (msg) => {
     setToast(msg)
@@ -43,6 +44,11 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    if (user?.role === 'club') {
+      navigate('/dashboard')
+      return
+    }
+
     if (USE_MOCKS) {
       setStats(mockUser.stats)
       setNextBooking(mockBookings[0])

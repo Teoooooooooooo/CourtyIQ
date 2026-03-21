@@ -27,6 +27,11 @@ export default function PassPage() {
   const refreshTrigger = useAuthStore(s => s.refreshTrigger)
   const triggerRefresh = useAuthStore(s => s.triggerRefresh)
 
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
   useEffect(() => {
     if (USE_MOCKS) {
       setPass(mockPass)

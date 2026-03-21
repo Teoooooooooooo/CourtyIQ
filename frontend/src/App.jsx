@@ -11,6 +11,7 @@ import PassPage from './pages/PassPage'
 import SuccessPage from './pages/SuccessPage'
 import CancelPage from './pages/CancelPage'
 import ProfilePage from './pages/ProfilePage'
+import ClubDashboardPage from './pages/ClubDashboardPage'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/success" element={<Protected><SuccessPage /></Protected>} />
             <Route path="/cancel" element={<Protected><CancelPage /></Protected>} />
             <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+            <Route path="/dashboard" element={<Protected><ClubDashboardPage /></Protected>} />
           </Routes>
         </div>
         <BottomNav />

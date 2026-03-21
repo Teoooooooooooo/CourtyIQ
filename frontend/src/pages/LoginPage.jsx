@@ -20,7 +20,11 @@ export default function LoginPage() {
 
     if (USE_MOCKS) {
       login('mock-token-123', mockUser)
-      navigate('/')
+      if (mockUser.role === 'club') {
+        navigate('/dashboard')
+      } else {
+        navigate('/')
+      }
       return
     }
 
@@ -28,7 +32,11 @@ export default function LoginPage() {
     try {
       const { data } = await client.post('/auth/login', { email, password })
       login(data.token, data.user)
-      navigate('/')
+      if (data.user.role === 'club') {
+        navigate('/dashboard')
+      } else {
+        navigate('/')
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed')
     } finally {

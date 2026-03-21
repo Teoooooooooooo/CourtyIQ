@@ -29,6 +29,19 @@ export default function SocialPage() {
   const [chatMessages, setChatMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [toast, setToast] = useState(null)
+  const [notifications, setNotifications] = useState([])
+
+  const unreadNotifsCount = notifications.filter(n => !n.read).length
+  const hasUnread = challenges.length > 0 || unreadNotifsCount > 0
+
+  const handleReadNotif = async (n) => {
+    if (!n.read && !USE_MOCKS) {
+      try {
+        await client.put(`/notifications/${n.id}/read`)
+        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))
+      } catch {}
+    }
+  }
 
   useEffect(() => {
     if (USE_MOCKS) {
@@ -40,6 +53,7 @@ export default function SocialPage() {
     client.get('/ai/partner-matches').then(r => setPartnerMatches(r.data.matches || [])).catch(() => {})
     client.get('/social/challenges/incoming').then(r => setChallenges(r.data.challenges || r.data || [])).catch(() => {})
     client.get('/chat').then(r => setChatsList(r.data || [])).catch(() => {})
+    client.get('/notifications').then(r => setNotifications(r.data || [])).catch(() => {})
   }, [])
 
   const handlePlayerClick = (match) => {
@@ -158,7 +172,7 @@ export default function SocialPage() {
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            {challenges.length > 0 && (
+            {hasUnread && (
               <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white box-content"></span>
@@ -273,12 +287,13 @@ export default function SocialPage() {
               </button>
             </div>
             
-            {challenges.length === 0 ? (
+            {challenges.length === 0 && notifications.length === 0 ? (
               <div className="text-center py-10">
-                <p className="text-sm font-medium text-slate-400">You have no new challenges.</p>
+                <p className="text-sm font-medium text-slate-400">You have no new notifications.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
+                {challenges.length > 0 && <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-1">Challenges</p>}
                 {Array.isArray(challenges) && challenges.map(c => {
                   const p = c.fromUserProfile || c.challenger || {}
                   const challengerName = p.name || c.fromUserName || 'Unknown Player'
@@ -312,6 +327,22 @@ export default function SocialPage() {
                     </div>
                   )
                 })}
+
+                {notifications.length > 0 && <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-1 mt-3">Notifications</p>}
+                {notifications.map(n => (
+                  <div key={n.id} onClick={() => handleReadNotif(n)} className={`bg-white border rounded-xl p-4 cursor-pointer transition-colors ${!n.read ? 'border-blue-200 bg-[#f4fdff]' : 'border-slate-100 hover:bg-slate-50'}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <p className={`text-sm font-semibold ${!n.read ? 'text-[#0d1b2a]' : 'text-slate-600'}`}>
+                        {n.title}
+                      </p>
+                      {!n.read && <div className="w-2 h-2 bg-[#00C47D] rounded-full flex-shrink-0 mt-1.5"></div>}
+                    </div>
+                    <p className="text-xs text-slate-500 mb-2 leading-relaxed">{n.message}</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                      {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {new Date(n.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

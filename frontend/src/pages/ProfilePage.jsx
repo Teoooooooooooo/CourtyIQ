@@ -70,69 +70,89 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100 space-y-8">
-        <div>
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="font-condensed font-bold text-xl text-[#0d1b2a] uppercase tracking-wide">
-              Player Performance
-            </h2>
-            <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded uppercase">Live Data</span>
+      {user.role === 'club' ? (
+        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col items-center">
+          <h2 className="font-condensed font-bold text-xl text-[#0d1b2a] uppercase tracking-wide mb-3 text-center">
+            Club Management
+          </h2>
+          <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">
+            You are logged in as a Club Administrator. Access the Dashboard to manage your courts, pricing, and bookings.
+          </p>
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#00C47D] text-[#0d1b2a] font-bold text-sm hover:bg-[#00a066] hover:text-white transition-all shadow-md shadow-[#00C47D]/20 active:scale-95 flex items-center justify-center gap-2"
+          >
+            Go to Dashboard
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100 space-y-8">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="font-condensed font-bold text-xl text-[#0d1b2a] uppercase tracking-wide">
+                Player Performance
+              </h2>
+              <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg uppercase">Live Data</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-blue-50/50 hover:border-blue-100 transition-colors">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Skill Level</p>
+                <p className="text-2xl font-black text-[#0d1b2a]">{profile.skillLevel || '3.0'}</p>
+              </div>
+              <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-green-50/50 hover:border-green-100 transition-colors">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">ELO Rating</p>
+                <p className="text-2xl font-black text-[#00C47D]">{profile.eloRating || '1000'}</p>
+              </div>
+              <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-purple-50/50 hover:border-purple-100 transition-colors">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Match Record</p>
+                <p className="text-lg font-black text-[#0d1b2a]">
+                  <span className="text-green-600">{stats.wins}W</span>
+                  <span className="text-gray-300 mx-1">-</span>
+                  <span className="text-red-500">{stats.losses}L</span>
+                </p>
+              </div>
+              <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-orange-50/50 hover:border-orange-100 transition-colors">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Play Style</p>
+                <p className="text-sm font-bold text-[#0d1b2a] capitalize">{profile.playStyle || 'All-Court'}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-blue-50/50 hover:border-blue-100 transition-colors">
-              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Skill Level</p>
-              <p className="text-2xl font-black text-[#0d1b2a]">{profile.skillLevel || '3.0'}</p>
-            </div>
-            <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-green-50/50 hover:border-green-100 transition-colors">
-              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">ELO Rating</p>
-              <p className="text-2xl font-black text-[#00C47D]">{profile.eloRating || '1000'}</p>
-            </div>
-            <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-purple-50/50 hover:border-purple-100 transition-colors">
-              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Match Record</p>
-              <p className="text-lg font-black text-[#0d1b2a]">
-                <span className="text-green-600">{stats.wins}W</span>
-                <span className="text-gray-300 mx-1">-</span>
-                <span className="text-red-500">{stats.losses}L</span>
-              </p>
-            </div>
-            <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-orange-50/50 hover:border-orange-100 transition-colors">
-              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Play Style</p>
-              <p className="text-sm font-bold text-[#0d1b2a] capitalize">{profile.playStyle || 'All-Court'}</p>
+          <div className="pt-6 border-t border-gray-50">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Membership & Benefits</h3>
+            <div className="space-y-4">
+              <div className="group relative overflow-hidden p-4 bg-gradient-to-br from-[#0d1b2a] to-[#1a2e44] rounded-2xl text-white shadow-lg shadow-blue-900/10">
+                <div className="relative z-10 flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] opacity-70 uppercase font-bold mb-0.5">Subscription Tier</p>
+                    <p className="font-black text-lg tracking-tight capitalize">{subscription.tier || 'Basic'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] opacity-70 uppercase font-bold mb-0.5">Available Credits</p>
+                    <p className="font-black text-lg text-[#00C47D]">{subscription.creditsRemaining || 0}</p>
+                  </div>
+                </div>
+                <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col justify-center shadow-sm">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Home Club</p>
+                  <p className="font-bold text-xs text-gray-700 truncate">{profile.location || 'Not Set'}</p>
+                </div>
+                <div className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col justify-center shadow-sm">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Loyalty Points</p>
+                  <p className="font-black text-sm text-[#00C47D]">{loyaltyPoints} pts</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="pt-6 border-t border-gray-50">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Membership & Benefits</h3>
-          <div className="space-y-4">
-            <div className="group relative overflow-hidden p-4 bg-gradient-to-br from-[#0d1b2a] to-[#1a2e44] rounded-2xl text-white shadow-lg shadow-blue-900/10">
-              <div className="relative z-10 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] opacity-70 uppercase font-bold mb-0.5">Subscription Tier</p>
-                  <p className="font-black text-lg tracking-tight capitalize">{subscription.tier || 'Basic'}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] opacity-70 uppercase font-bold mb-0.5">Available Credits</p>
-                  <p className="font-black text-lg text-[#00C47D]">{subscription.creditsRemaining || 0}</p>
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col justify-center shadow-sm">
-                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Home Club</p>
-                <p className="font-bold text-xs text-gray-700 truncate">{profile.location || 'Not Set'}</p>
-              </div>
-              <div className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col justify-center shadow-sm">
-                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Loyalty Points</p>
-                <p className="font-black text-sm text-[#00C47D]">{loyaltyPoints} pts</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className="space-y-4 pt-4">
         <button

@@ -67,8 +67,20 @@ router.post('/subscribe', authenticate, async (req, res, next) => {
             });
         }
 
-        // If already on this tier, no change needed
+        // If already on this tier, but had a pending change, cancel the pending change
         if (existing.tier === tier) {
+            if (existing.pendingTier) {
+                const subscription = await prisma.subscription.update({
+                    where: { userId },
+                    data: { pendingTier: null },
+                });
+                return res.status(200).json({
+                    ...subscription,
+                    perks: getPerks(subscription.tier),
+                    message: "Pending plan change cancelled. You will remain on your current plan."
+                });
+            }
+
             return res.status(200).json({
                 ...existing,
                 perks: getPerks(existing.tier),

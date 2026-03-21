@@ -23,6 +23,8 @@ app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/pass', require('./routes/pass'));
 app.use('/api/v1/loyalty', require('./routes/loyalty'));
 app.use('/api/v1/chat', require('./routes/chat'));
+app.use('/api/v1/club-dashboard', require('./routes/clubDashboard'));
+app.use('/api/v1/notifications', require('./routes/notifications'));
 
 app.use(require('./middleware/errorHandler'));
 

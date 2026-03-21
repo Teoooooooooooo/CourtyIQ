@@ -12,11 +12,13 @@ model User {
   email        String    @unique
   passwordHash String
   name         String
+  role         String    @default("player") // player | club
   createdAt    DateTime  @default(now())
   profile      PlayerProfile?
   bookings     Booking[]
   loyalty      LoyaltyPoint[]
   subscription Subscription?
+  clubs        Club[]
 }
 
 model PlayerProfile {
@@ -31,12 +33,14 @@ model PlayerProfile {
 }
 
 model Club {
-  id      String  @id @default(uuid())
-  name    String
-  address String
-  lat     Decimal
-  lng     Decimal
-  courts  Court[]
+  id          String  @id @default(uuid())
+  name        String
+  address     String
+  lat         Decimal
+  lng         Decimal
+  ownerUserId String?
+  owner       User?   @relation(fields: [ownerUserId], references: [id])
+  courts      Court[]
 }
 
 model Court {
@@ -122,4 +126,24 @@ model Message {
   receiverId String
   text       String
   createdAt  DateTime @default(now())
+}
+
+model BannedUser {
+  id        String   @id @default(uuid())
+  clubId    String
+  userId    String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([clubId, userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // ban | info | challenge_accepted
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

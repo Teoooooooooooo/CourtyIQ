@@ -8,7 +8,7 @@ export default function AppHeader() {
   return (
     <div className="bg-[#0d1b2a] px-5 pt-5 pb-4 text-white">
       <div className="flex items-center justify-between mb-1">
-        <Link to="/" className="font-condensed text-2xl font-extrabold tracking-tight hover:opacity-80 transition-opacity">
+        <Link to={user?.role === 'club' ? "/dashboard" : "/"} className="font-condensed text-2xl font-extrabold tracking-tight hover:opacity-80 transition-opacity">
           <span className="text-[#00C47D]">Court</span>IQ
         </Link>
         {user && (
