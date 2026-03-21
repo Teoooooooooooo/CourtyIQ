@@ -10,11 +10,11 @@ import { formatTime, formatDateTime } from '../utils/format'
 import client from '../api/client'
 
 // Import premium club images
-import padel1 from '../assets/padel1.jpg'
-import padel2 from '../assets/padel2.webp'
-import padel3 from '../assets/padel3.jpg'
-import padel4 from '../assets/padel4.jpg'
-import padel5 from '../assets/padel5.webp'
+import padel1 from '../assets/padel1.jpeg'
+import padel2 from '../assets/padel2.jpeg'
+import padel3 from '../assets/padel3.jpeg'
+import padel4 from '../assets/padel4.jpeg'
+import padel5 from '../assets/padel5.jpeg'
 
 const CLUB_IMAGES = [padel1, padel2, padel3, padel4, padel5]
 
@@ -302,7 +302,7 @@ function PriceOracle({ recommendations }) {
           const isMax = r.price === maxPrice
           return (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="w-11 text-slate-500 font-medium">{r.time || formatTime(r.startTime)}</span>
+              <span className="w-11 text-slate-500 font-medium whitespace-nowrap">{formatTime(r.time || r.startTime)}</span>
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${isMin ? 'bg-[#00C47D]' : isMax ? 'bg-red-400' : 'bg-amber-400'}`}
