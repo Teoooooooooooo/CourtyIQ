@@ -28,6 +28,24 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
   const [error, setError] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState(null)
 
+  const [playerSearch, setPlayerSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [invitedPlayers, setInvitedPlayers] = useState([])
+
+  useEffect(() => {
+    if (playerSearch.length < 2) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      client.get(`/users/search?q=${playerSearch}`).then(r => {
+        const invitedIds = invitedPlayers.map(p => p.id)
+        setSearchResults(r.data.filter(u => !invitedIds.includes(u.id)))
+      }).catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [playerSearch, invitedPlayers])
+
   const handleBook = async () => {
     if (USE_MOCKS) {
       onSuccess('Booking confirmed! (mock)')
@@ -41,7 +59,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         courtId: court.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        playerIds: [],
+        playerIds: invitedPlayers.map(p => p.id),
         useCredits: paymentMethod === 'credits',
       })
 
@@ -135,6 +153,50 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
             <p className="text-xs text-slate-400">{slot.creditCost} credits</p>
           </div>
         </div>
+
+        {/* Add Players */}
+        {!paymentMethod && (
+          <div className="mb-4 animate-fade-in relative z-20">
+            <p className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Add Players (Optional)</p>
+            
+            <div className="flex flex-wrap gap-2 mb-2">
+              {invitedPlayers.map(p => (
+                <div key={p.id} className="bg-slate-100 border border-slate-200 text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all">
+                  {p.name}
+                  <button onClick={() => setInvitedPlayers(prev => prev.filter(u => u.id !== p.id))} className="text-slate-400 hover:text-red-400 ml-1 scale-125">×</button>
+                </div>
+              ))}
+            </div>
+
+            {invitedPlayers.length < 3 && (
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={playerSearch}
+                  onChange={e => setPlayerSearch(e.target.value)}
+                  placeholder="Search by name..." 
+                  className="w-full bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#00C47D] transition-colors"
+                />
+                {searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg max-h-32 overflow-y-auto w-full z-50">
+                    {searchResults.map(u => (
+                      <button key={u.id} onClick={() => {
+                        setInvitedPlayers(prev => [...prev, u])
+                        setPlayerSearch('')
+                        setSearchResults([])
+                      }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors">
+                        <span className="font-semibold text-[#0d1b2a]">{u.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                          Lvl {Number(u.profile?.skillLevel || 3).toFixed(1)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Payment Buttons / Options */}
         {!paymentMethod && slot.status !== 'booked' && (

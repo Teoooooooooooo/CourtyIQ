@@ -12,6 +12,7 @@ export default function HomePage() {
   const [stats, setStats] = useState(null)
   const [nextBooking, setNextBooking] = useState(null)
   const [upcomingBookings, setUpcomingBookings] = useState([])
+  const [historyBookings, setHistoryBookings] = useState([])
   const [aiSuggestion, setAiSuggestion] = useState(null)
   const [toast, setToast] = useState(null)
   const refreshTrigger = useAuthStore(s => s.refreshTrigger)
@@ -46,11 +47,27 @@ export default function HomePage() {
     }
   }
 
+  const handleRecordResult = async (bookingId, outcome) => {
+    if (USE_MOCKS) {
+      showToast('Result recorded (mock)')
+      triggerRefresh()
+      return
+    }
+    try {
+      await client.put('/users/me/stats', { bookingId, outcome })
+      showToast('Result recorded!')
+      triggerRefresh()
+    } catch (err) {
+      showToast('Failed to record result')
+    }
+  }
+
   useEffect(() => {
     if (USE_MOCKS) {
       setStats(mockUser.stats)
       setNextBooking(mockBookings[0])
       setUpcomingBookings(mockBookings)
+      setHistoryBookings(mockBookings.slice(0, 2))
       setTimeout(() => setAiSuggestion(mockAiSuggestion), 800)
       return
     }
@@ -64,7 +81,7 @@ export default function HomePage() {
         client.get('/users/me/bookings').catch(() => ({ data: [] })),
         client.get('/waitlist/me').catch(() => ({ data: [] }))
       ]).then(([bkRes, wlRes]) => {
-        const upBk = (bkRes.data || []).filter(b => b.status === 'confirmed' && new Date(b.startTime) > new Date())
+        const upBk = (bkRes.data || []).filter(b => b.status === 'confirmed' && new Date(b.endTime) > new Date())
           .map(b => ({ ...b, type: 'booking', sortTime: new Date(b.startTime).getTime() }))
         
         const upWl = (wlRes.data || []).filter(w => new Date(w.slotStart) > new Date())
@@ -79,6 +96,11 @@ export default function HomePage() {
         const combined = [...upBk, ...upWl].sort((a, b) => a.sortTime - b.sortTime)
         setNextBooking(combined.find(i => i.type === 'booking') || null)
         setUpcomingBookings(combined.slice(0, 5))
+
+        const history = (bkRes.data || []).filter(
+          b => ['confirmed', 'recorded'].includes(b.status) && new Date(b.endTime) <= new Date()
+        ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        setHistoryBookings(history.slice(0, 5))
       }),
       client.get('/ai/slot-suggestion')
         .then(r => setAiSuggestion(r.data.slot))
@@ -126,7 +148,7 @@ export default function HomePage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3 px-4">
         {[
-          { label: 'Win rate', value: winRate !== null ? `${winRate}%` : '—', green: true },
+          { label: 'Win rate', value: winRate !== null && !isNaN(winRate) ? `${winRate}%` : '—', green: true },
           { label: 'Games', value: stats ? stats.wins + stats.losses : '—' },
           { label: 'Loyalty pts', value: stats ? (stats.loyaltyTotal ?? 0).toLocaleString() : '—' },
         ].map(s => (
@@ -173,7 +195,9 @@ export default function HomePage() {
           Upcoming bookings
         </p>
         {upcomingBookings.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-4">No upcoming bookings</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-6 text-center">
+            <p className="text-sm text-slate-400">No upcoming bookings</p>
+          </div>
         ) : (
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             {upcomingBookings.map((b, i) => {
@@ -189,11 +213,8 @@ export default function HomePage() {
                     <p className="text-sm font-semibold text-[#0d1b2a] truncate">{b.court.club.name}</p>
                     <p className="text-xs text-slate-400">{b.court.name} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                  {b.result ? (
-                    <span className={`text-sm font-bold ${b.result === 'win' ? 'text-[#00C47D]' : 'text-red-400'}`}>
-                      {b.result === 'win' ? 'W' : 'L'}
-                    </span>
-                  ) : b.type === 'waitlist' ? (
+
+                  {b.type === 'waitlist' ? (
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-[10px] font-bold text-orange-600 uppercase tracking-tight bg-orange-100 px-2 py-0.5 rounded border border-orange-200">
                         Waitlist
@@ -212,6 +233,58 @@ export default function HomePage() {
                     >
                       Cancel
                     </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* History & Recordings */}
+      <div className="px-4 mt-2">
+        <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-3">
+          Recent History
+        </p>
+        {historyBookings.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-6 text-center">
+            <p className="text-sm text-slate-400">No recent history</p>
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            {historyBookings.map((b, i) => {
+              const d = new Date(b.startTime)
+              const isRecorded = b.status === 'recorded'
+              return (
+                <div key={b.id}
+                  className={`flex items-center gap-3 p-3 ${i < historyBookings.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                  <div className="bg-slate-100 text-slate-400 rounded-lg w-10 h-10 flex flex-col items-center justify-center flex-shrink-0">
+                    <span className="font-condensed font-bold text-sm leading-none">{d.getDate()}</span>
+                    <span className="text-[9px] uppercase">{d.toLocaleString('en', { month: 'short' })}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-600 truncate">{b.court.club.name}</p>
+                    <p className="text-xs text-slate-400">{b.court.name} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  {isRecorded ? (
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      Recorded
+                    </span>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => handleRecordResult(b.id, 'W')}
+                        className="text-[10px] font-bold text-[#00a066] hover:bg-[#d0f5e8] uppercase tracking-tight bg-[#e6faf3] px-2.5 py-1.5 rounded transition-colors"
+                      >
+                        Won
+                      </button>
+                      <button 
+                        onClick={() => handleRecordResult(b.id, 'L')}
+                        className="text-[10px] font-bold text-red-500 hover:bg-red-100 uppercase tracking-tight bg-red-50 px-2.5 py-1.5 rounded transition-colors"
+                      >
+                        Lost
+                      </button>
+                    </div>
                   )}
                 </div>
               )
