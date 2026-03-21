@@ -74,7 +74,7 @@ export default function PassPage() {
           <div className="absolute right-10 -bottom-6 w-16 h-16 rounded-full bg-[#00C47D] opacity-5" />
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-condensed text-2xl font-extrabold">
-              PadelPass {pass.tier.toUpperCase()}
+              PadelPass {(pass.tier || 'BASIC').toUpperCase()}
             </h2>
             <span className="bg-[#00C47D] text-[#0d1b2a] text-xs font-bold px-3 py-1 rounded-lg">
               Active
@@ -88,10 +88,10 @@ export default function PassPage() {
           </div>
           <div className="h-1.5 bg-white/15 rounded-full overflow-hidden mb-4">
             <div className="h-full bg-[#00C47D] rounded-full transition-all"
-              style={{ width: `${Math.round((pass.creditsRemaining / pass.creditsTotal) * 100)}%` }} />
+              style={{ width: `${pass.creditsTotal ? Math.round((pass.creditsRemaining / pass.creditsTotal) * 100) : 0}%` }} />
           </div>
           <div className="flex flex-wrap gap-2">
-            {pass.perks.map(perk => (
+            {(pass.perks || []).map(perk => (
               <span key={perk}
                 className="text-xs bg-white/10 border border-white/20 px-3 py-1 rounded-full text-white/80">
                 {perk}
@@ -135,7 +135,7 @@ export default function PassPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <span className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">
-                  {loyalty.points.toLocaleString()}
+                  {(loyalty.points || 0).toLocaleString()}
                 </span>
                 <span className="text-xs text-slate-400 ml-2">points</span>
                 {nextTier && (
