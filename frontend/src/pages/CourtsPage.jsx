@@ -288,12 +288,13 @@ function PriceOracle({ recommendations }) {
       </p>
       <div className="flex flex-col gap-1.5">
         {recommendations.map((r, i) => {
+          const displayTime = r.time ? (r.time.includes('T') ? formatTime(r.time) : r.time) : formatTime(r.startTime)
           const pct = maxPrice > 0 ? (r.price / maxPrice) * 100 : 0
           const isMin = r.price === minPrice
           const isMax = r.price === maxPrice
           return (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="w-11 text-slate-500 font-medium">{r.time || formatTime(r.startTime)}</span>
+              <span className="w-11 text-slate-500 font-medium">{displayTime}</span>
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${isMin ? 'bg-[#00C47D]' : isMax ? 'bg-red-400' : 'bg-amber-400'}`}
