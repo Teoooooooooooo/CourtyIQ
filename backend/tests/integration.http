@@ -1,0 +1,133 @@
+# CourtIQ BE3 — Manual Integration Tests
+# Use with VS Code REST Client extension (Ctrl+Alt+R on each request)
+# OR import into Postman / Insomnia
+#
+# Setup:
+#   1. Copy .env.example → backend/.env and fill in values
+#   2. cd backend && npx prisma migrate dev --name init
+#   3. npm run seed          (creates test users + clubs)
+#   4. npm run dev
+#   5. Run the AUTH request first → copy the token → set @token below
+
+@base = http://localhost:3001/api/v1
+@token = PASTE_JWT_TOKEN_HERE
+@opponentId = PASTE_A_SECOND_USER_ID_HERE
+@clubId = PASTE_A_CLUB_ID_HERE
+
+###############################################################################
+# AUTH — get a JWT token (implemented by BE1)
+###############################################################################
+
+### POST Login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@courtiq.com",
+  "password": "password123"
+}
+
+###############################################################################
+# PASS — subscription
+###############################################################################
+
+### GET my subscription
+GET {{base}}/pass/me
+Authorization: Bearer {{token}}
+
+---
+
+### POST subscribe (Pro tier)
+POST {{base}}/pass/subscribe
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tier": "pro"
+}
+
+###############################################################################
+# LOYALTY — points
+###############################################################################
+
+### GET my loyalty points
+GET {{base}}/loyalty/me
+Authorization: Bearer {{token}}
+
+###############################################################################
+# SOCIAL — challenges
+###############################################################################
+
+### POST challenge another player
+POST {{base}}/social/challenge
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "targetUserId": "{{opponentId}}",
+  "proposedTime": "2026-03-25T18:00:00.000Z"
+}
+
+---
+
+### GET incoming challenges (login as opponent to see it)
+GET {{base}}/social/challenges/incoming
+Authorization: Bearer {{token}}
+
+---
+
+### PUT accept a challenge (replace CHALLENGE_ID)
+PUT {{base}}/social/challenges/CHALLENGE_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "accept"
+}
+
+###############################################################################
+# MATCHES — record result, check H2H
+###############################################################################
+
+### POST record a match result
+POST {{base}}/matches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "team1Ids": ["YOUR_USER_ID", "PLAYER3_ID"],
+  "team2Ids": ["{{opponentId}}", "PLAYER4_ID"],
+  "winnerTeam": 1
+}
+
+---
+
+### GET head-to-head stats
+GET {{base}}/matches/h2h/{{opponentId}}
+Authorization: Bearer {{token}}
+
+###############################################################################
+# AI — all four endpoints
+###############################################################################
+
+### GET partner matches (AI ranked)
+GET {{base}}/ai/partner-matches
+Authorization: Bearer {{token}}
+
+---
+
+### GET price oracle for a club
+GET {{base}}/ai/price-oracle/{{clubId}}
+Authorization: Bearer {{token}}
+
+---
+
+### GET smart slot suggestion
+GET {{base}}/ai/slot-suggestion
+Authorization: Bearer {{token}}
+
+---
+
+### GET win predictor vs opponent
+GET {{base}}/ai/win-predictor/{{opponentId}}
+Authorization: Bearer {{token}}

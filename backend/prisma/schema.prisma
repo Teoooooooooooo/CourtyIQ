@@ -86,6 +86,16 @@ model Match {
   createdAt  DateTime @default(now())
 }
 
+model Challenge {
+  id           String   @id @default(uuid())
+  fromUserId   String
+  toUserId     String
+  proposedTime DateTime
+  courtId      String?
+  status       String   @default("pending") // pending | accepted | declined
+  createdAt    DateTime @default(now())
+}
+
 model Subscription {
   id               String    @id @default(uuid())
   userId           String    @unique
