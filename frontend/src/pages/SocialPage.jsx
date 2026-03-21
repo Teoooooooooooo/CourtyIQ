@@ -57,7 +57,14 @@ export default function SocialPage() {
       return
     }
     try {
-      await client.post('/social/challenges', { opponentId: userId })
+      // Default proposed time to tomorrow at the same time
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
+      await client.post('/social/challenge', { 
+        targetUserId: userId, 
+        proposedTime: tomorrow.toISOString() 
+      })
       showToast('Challenge sent!')
     } catch {
       showToast('Failed to send challenge')
