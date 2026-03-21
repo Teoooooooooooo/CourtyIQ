@@ -1,143 +1,155 @@
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding demo data...');
+  console.log('Starting DEMO seed...');
 
-  const peakHours = [{ day: 'MON-FRI', start: '17:00', end: '21:00' }];
+  // Reset database safely
+  await prisma.match.deleteMany({});
+  await prisma.waitlist.deleteMany({});
+  await prisma.booking.deleteMany({});
+  await prisma.court.deleteMany({});
+  await prisma.club.deleteMany({});
+  await prisma.loyaltyPoint.deleteMany({});
+  await prisma.challenge.deleteMany({});
+  await prisma.subscription.deleteMany({});
+  await prisma.playerProfile.deleteMany({});
+  await prisma.user.deleteMany({});
 
-  // ── 5 Clubs ────────────────────────────────────────────
+  // 5 Clubs
   const clubsData = [
-    { name: 'Padel City Arena', address: 'Str. Sporturilor 12, Bucharest', lat: 44.46, lng: 26.10 },
-    { name: 'Smash Club', address: 'Bd. Unirii 45, Bucharest', lat: 44.47, lng: 26.09 },
-    { name: 'Arena Pro', address: 'Calea Victoriei 100, Bucharest', lat: 44.45, lng: 26.08 },
-    { name: 'Padel Paradise', address: 'Str. Floreasca 22, Bucharest', lat: 44.48, lng: 26.11 },
-    { name: 'Court Royale', address: 'Bd. Aviatorilor 70, Bucharest', lat: 44.46, lng: 26.07 },
+    { name: 'Padel City Arena', address: 'Str. Pipera 12, Voluntari', lat: 44.4934, lng: 26.1063 },
+    { name: 'Smash Club Floreasca', address: 'Bd. Floreasca 88, Sector 1', lat: 44.4702, lng: 26.0953 },
+    { name: 'Arena Pro Herastrau', address: 'Str. Nordului 7, Sector 1', lat: 44.4831, lng: 26.0782 },
+    { name: 'Club Baneasa', address: 'Soseaua Bucuresti-Ploiesti', lat: 44.5012, lng: 26.0834 },
+    { name: 'Padel Hub Titan', address: 'Parcul Teilor, Sector 3', lat: 44.4205, lng: 26.1392 },
   ];
 
-  const clubs = [];
-  for (const cd of clubsData) {
-    const club = await prisma.club.create({ data: cd });
-    clubs.push(club);
-  }
-
-  // ── 3 Courts per club ─────────────────────────────────
-  const courtTypes = ['outdoor', 'indoor', 'outdoor'];
-  const basePrices = [10, 15, 20];
-
-  for (const club of clubs) {
-    for (let i = 0; i < 3; i++) {
-      await prisma.court.create({
-        data: {
-          clubId: club.id,
-          name: `Court ${i + 1}`,
-          type: courtTypes[i],
-          basePrice: basePrices[i],
-          peakMultiplier: 1.5,
-          peakHours,
-        },
-      });
-    }
-  }
-
-  // ── 20 Players with varied stats ──────────────────────
-  const passwordHash = await bcrypt.hash('password123', 10);
-  const playStyles = ['all-court', 'aggressive', 'defensive', 'net-rusher', 'baseline'];
-
-  const playerIds = [];
-  for (let i = 1; i <= 20; i++) {
-    const elo = 800 + Math.floor(Math.random() * 600);      // 800–1400
-    const skill = +(2.5 + Math.random() * 2).toFixed(1);     // 2.5–4.5
-    const style = playStyles[i % playStyles.length];
-    const wins = Math.floor(Math.random() * 50);
-    const losses = Math.floor(Math.random() * 40);
-
-    const user = await prisma.user.create({
+  const createdClubs = [];
+  for (const c of clubsData) {
+    const club = await prisma.club.create({ data: c });
+    createdClubs.push(club);
+    
+    // 3 courts per club (15 total)
+    await prisma.court.create({
       data: {
-        email: `player${i}@test.com`,
+        clubId: club.id, name: 'Court 1 - Pro', type: 'outdoor', basePrice: 15, peakMultiplier: 1.8,
+        peakHours: [{ day: 'MON-FRI', start: '17:00', end: '22:00' }]
+      }
+    });
+    await prisma.court.create({
+      data: {
+        clubId: club.id, name: 'Court 2 - Indoor', type: 'indoor', basePrice: 20, peakMultiplier: 1.5,
+        peakHours: [{ day: 'MON-FRI', start: '17:00', end: '22:00' }, { day: 'SAT', start: '09:00', end: '14:00' }]
+      }
+    });
+    await prisma.court.create({
+      data: {
+        clubId: club.id, name: 'Court 3 - Standard', type: 'outdoor', basePrice: 10, peakMultiplier: 2.0,
+        peakHours: [{ day: 'MON-FRI', start: '18:00', end: '21:00' }]
+      }
+    });
+  }
+
+  // 20 Players
+  const firstNames = ['Andrei','Alexandru','Mihai','Ionut','Florin','Stefan','Marian','Cristian','Gabriel','Bogdan','Radu','Vlad','Cosmin','Constantin','Nicolae','Gheorghe','Vasile','Daniel','Catalin','Adrian'];
+  const lastNames = ['Popescu','Radu','Ionescu','Dumitrescu','Stan','Gheorghe','Matei','Ciobanu','Marin','Mihai','Nistor','Toma','Oprea','Lupu','Ilie','Diaconu','Barbu','Mocanu','Petrescu','Dima'];
+
+  const passwordHash = await bcrypt.hash('password123', 10);
+  const createdPlayers = [];
+  
+  for (let i = 0; i < 20; i++) {
+    const p = await prisma.user.create({
+      data: {
+        email: `player${i+1}@test.com`,
+        name: `${firstNames[i]} ${lastNames[i]}`,
         passwordHash,
-        name: `Player ${i}`,
         profile: {
           create: {
-            skillLevel: skill,
-            eloRating: elo,
-            playStyle: style,
-            location: 'Bucharest',
-            stats: { wins, losses, lastFive: [] },
-          },
+            skillLevel: 2.0 + (Math.random() * 3), // 2.0 to 5.0
+            eloRating: Math.floor(780 + Math.random() * 600), // 780 to 1380
+            playStyle: i % 2 === 0 ? 'aggressive' : 'defensive',
+            location: 'Bucharest'
+          }
         },
-      },
+        subscription: {
+          create: { tier: 'basic', creditsTotal: 10, creditsRemaining: 10 }
+        }
+      }
     });
-    playerIds.push(user.id);
+    createdPlayers.push(p);
   }
 
-  // ── Demo account ───────────────────────────────────────
-  const demoHash = await bcrypt.hash('demo123', 10);
+  // DEMO ACCOUNT
+  const demoPwHash = await bcrypt.hash('demo123', 10);
   const demoUser = await prisma.user.create({
     data: {
       email: 'demo@courtiq.com',
-      passwordHash: demoHash,
-      name: 'Demo Player',
+      name: 'Demo Account',
+      passwordHash: demoPwHash,
       profile: {
         create: {
-          skillLevel: 3.8,
-          eloRating: 1150,
-          playStyle: 'all-court',
-          location: 'Bucharest',
-          stats: { wins: 24, losses: 12, lastFive: ['W', 'W', 'L', 'W', 'L'] },
-        },
+          skillLevel: 3.5,
+          eloRating: 1140,
+          playStyle: 'aggressive',
+          location: 'Floreasca',
+          stats: { wins: 16, losses: 8, lastFive: ["W","W","L","W","W"] }
+        }
       },
       subscription: {
-        create: {
-          tier: 'pro',
-          creditsTotal: 20,
-          creditsRemaining: 18,
-          renewsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      },
-    },
+        create: { tier: 'pro', creditsTotal: 20, creditsRemaining: 18 }
+      }
+    }
   });
 
-  // Demo loyalty points — Silver tier (1240 pts)
-  await prisma.loyaltyPoint.createMany({
-    data: [
-      { userId: demoUser.id, points: 500, reason: 'Welcome bonus' },
-      { userId: demoUser.id, points: 300, reason: 'Booking streak' },
-      { userId: demoUser.id, points: 240, reason: 'Match win bonus' },
-      { userId: demoUser.id, points: 200, reason: 'Referral' },
-    ],
+  // Demo Loyalty Points (1240 pts)
+  await prisma.loyaltyPoint.create({
+    data: { userId: demoUser.id, points: 1200, reason: 'booking_completed' }
+  });
+  await prisma.loyaltyPoint.create({
+    data: { userId: demoUser.id, points: 40, reason: 'match_won' }
   });
 
-  // Demo bookings — 3 upcoming confirmed
-  const courts = await prisma.court.findMany({ take: 3 });
-  const now = new Date();
-
-  for (let i = 0; i < 3; i++) {
-    const start = new Date(now.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-    start.setHours(18, 0, 0, 0);
-    const end = new Date(start.getTime() + 90 * 60 * 1000); // 1.5 hours
+  // Upcoming Bookings for Demo
+  const outdoorCourt = await prisma.court.findFirst({ where: { type: 'outdoor' }});
+  
+  const futureDates = [2, 4, 6]; // March 22, 24, 26 simulation (or relative future dates)
+  for (const dOffset of futureDates) {
+    const st = new Date();
+    st.setDate(st.getDate() + dOffset);
+    st.setHours(18, 0, 0, 0);
+    const et = new Date(st);
+    et.setHours(19, 0, 0, 0);
 
     await prisma.booking.create({
       data: {
-        courtId: courts[i].id,
+        courtId: outdoorCourt.id,
         organizerId: demoUser.id,
-        startTime: start,
-        endTime: end,
+        startTime: st,
+        endTime: et,
         status: 'confirmed',
-        totalPrice: courts[i].basePrice,
-        playerIds: [demoUser.id, playerIds[i]],
-      },
+        totalPrice: 20,
+        playerIds: [demoUser.id, createdPlayers[0].id, createdPlayers[1].id, createdPlayers[2].id]
+      }
     });
   }
 
-  console.log('✅ Demo seed complete: 5 clubs, 15 courts, 21 players (incl. demo), 3 bookings');
+  // Past Matches involving demo account (approx 30)
+  for (let m = 0; m < 30; m++) {
+    await prisma.match.create({
+      data: {
+        // demo is in team 1
+        team1Ids: [demoUser.id, createdPlayers[m % 10].id],
+        team2Ids: [createdPlayers[(m+1) % 10].id, createdPlayers[(m+2) % 10].id],
+        winnerTeam: m % 3 === 0 ? 2 : 1, // Wins ~66% of the time
+        eloDelta: { [demoUser.id]: m % 3 === 0 ? -15 : 20 },
+        createdAt: new Date(Date.now() - (30 - m) * 86400000)
+      }
+    });
+  }
+
+  console.log('Demo Seed completed successfully.');
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main().catch(e => { console.error(e); process.exit(1); }).finally(async () => { await prisma.$disconnect(); });
