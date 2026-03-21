@@ -6,14 +6,14 @@ const prisma = new PrismaClient();
  * Must be called inside a prisma.$transaction interactive block.
  */
 async function checkAvailability(prismaClient, courtId, startTime, endTime) {
-  const conflicts = await prismaClient.$queryRaw`
+  const conflicts = await prismaClient.$queryRawUnsafe(`
     SELECT id FROM "Booking"
-    WHERE "courtId" = ${courtId}::uuid
+    WHERE CAST("courtId" AS text) = $1
     AND status = 'confirmed'
-    AND "startTime" < ${new Date(endTime)}
-    AND "endTime" > ${new Date(startTime)}
+    AND "startTime" < $2
+    AND "endTime" > $3
     FOR UPDATE
-  `;
+  `, courtId, new Date(endTime), new Date(startTime));
   return conflicts.length === 0;
 }
 
