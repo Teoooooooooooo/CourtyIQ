@@ -1,0 +1,7 @@
+﻿298adac Merge pull request #3 from NacuIoan/feature/be2-bookings
+3a25eac Merge pull request #2 from NacuIoan/feature/be3-ai-social
+19c143c Merge branch 'main' into feature/be3-ai-social
+9bd41a9 feat(be3): AI features, social challenges, Elo rating, pass & loyalty - Implement EloService (expectedScore, updateRatings, winProbability) - Implement AIService with OpenAI gpt-4o-mini (partner match, price oracle, slot suggestion) - Add LoyaltyService (awardPoints, getTotal, tier thresholds) - Add in-memory TTL cache and shared slot generator utility - AI routes: partner-matches, price-oracle, slot-suggestion, win-predictor - Social routes: challenge send/receive/respond - Matches route: record result with atomic Elo updates + H2H query - Pass routes: subscribe/view subscription - Loyalty route: balance + history - Add Challenge model to schema.prisma - Add EloService unit tests (12 passing) + integration.http
+34a1911 fix(be2): correct postgres UUID type casting in BookingService
+54c3b3c Merge pull request #1 from NacuIoan/feature/be2-bookings
+232f050 feat(be2): booking engine, Stripe payments, SSE, waitlist, loyalty

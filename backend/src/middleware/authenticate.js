@@ -1,14 +1,17 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  const token = authHeader.split(' ')[1];
   try {
-    req.user = jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.user = payload; // payload contains { userId, email }
     next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
