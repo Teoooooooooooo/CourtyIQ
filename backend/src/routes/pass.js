@@ -19,10 +19,14 @@ router.get('/me', authenticate, async (req, res, next) => {
         const sub = await prisma.subscription.findUnique({ where: { userId } });
 
         if (!sub) {
-            return res.json({ tier: null, creditsRemaining: 0, creditsTotal: 0, renewsAt: null });
+            return res.json({ tier: null, creditsRemaining: 0, creditsTotal: 0, renewsAt: null, perks: [] });
         }
 
-        res.json({ subscription: sub });
+        const perks = sub.tier === 'elite' ? ['Free court upgrade', 'Priority waitlist', 'Free racket rental'] :
+                      sub.tier === 'pro' ? ['Free court upgrade', 'Priority waitlist'] :
+                      ['Free court upgrade'];
+
+        res.json({ ...sub, perks });
     } catch (err) {
         next(err);
     }
@@ -51,7 +55,11 @@ router.post('/subscribe', authenticate, async (req, res, next) => {
             update: { tier, creditsTotal: credits, creditsRemaining: credits, renewsAt },
         });
 
-        res.status(200).json({ subscription });
+        const perks = subscription.tier === 'elite' ? ['Free court upgrade', 'Priority waitlist', 'Free racket rental'] :
+                      subscription.tier === 'pro' ? ['Free court upgrade', 'Priority waitlist'] :
+                      ['Free court upgrade'];
+
+        res.status(200).json({ ...subscription, perks });
     } catch (err) {
         next(err);
     }
