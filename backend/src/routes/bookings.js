@@ -15,6 +15,11 @@ router.post('/', authenticate, async (req, res, next) => {
     const organizerId = req.user.userId;
     const bookingId = uuidv4();
 
+    // 0. Prevent booking in the past
+    if (new Date(startTime) < new Date()) {
+      return res.status(400).json({ error: 'Cannot book a time slot in the past' });
+    }
+
     // 1. Fetch court (need peakHours for price calc)
     const court = await prisma.court.findUnique({ where: { id: courtId } });
     if (!court) return res.status(404).json({ error: 'Court not found' });
@@ -26,7 +31,7 @@ router.post('/', authenticate, async (req, res, next) => {
     const subscription = await prisma.subscription.findUnique({
       where: { userId: organizerId },
     });
-    
+
     // Check if user requested to use credits AND has at least 1 credit remaining
     const hasCredits = useCredits && subscription && subscription.creditsRemaining > 0;
 

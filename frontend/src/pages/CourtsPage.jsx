@@ -138,10 +138,10 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
           <div className="animate-fade-in">
             <button onClick={handleBook} disabled={loading}
               className="w-full bg-[#00C47D] text-[#0d1b2a] font-bold rounded-xl py-3 disabled:opacity-50 transition-opacity text-sm">
-              {loading 
-                ? 'Processing...' 
-                : paymentMethod === 'credits' 
-                  ? `Confirm & Pay ${slot.creditCost || 1} Credit` 
+              {loading
+                ? 'Processing...'
+                : paymentMethod === 'credits'
+                  ? `Confirm & Pay ${slot.creditCost || 1} Credit`
                   : `Confirm & Pay ${slot.basePrice} RON`
               }
             </button>
@@ -151,7 +151,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
             </button>
           </div>
         )}
-        
+
         {!paymentMethod && (
           <button onClick={onClose}
             className="w-full text-slate-400 text-sm mt-2 py-2">
@@ -205,11 +205,47 @@ function PriceOracle({ recommendations }) {
   )
 }
 
+/* ─── Date Picker ─── */
+function DatePicker({ selectedDate, onDateSelect }) {
+  const dates = []
+  for (let i = 0; i < 14; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    dates.push(d)
+  }
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+      {dates.map((d, i) => {
+        const isSelected = d.toDateString() === selectedDate.toDateString()
+        const isToday = d.toDateString() === new Date().toDateString()
+        return (
+          <button key={i} onClick={() => onDateSelect(d)}
+            className={`flex flex-col items-center justify-center min-w-[56px] h-[72px] rounded-2xl transition-all border-2
+              ${isSelected
+                ? 'bg-[#0d1b2a] border-[#0d1b2a] text-white shadow-lg scale-105'
+                : 'bg-white border-slate-100 text-slate-500 hover:border-[#00C47D]'}`}>
+            <span className="text-[9px] uppercase font-bold tracking-tighter opacity-60">
+              {d.toLocaleDateString('en-GB', { weekday: 'short' })}
+            </span>
+            <span className="text-lg font-extrabold leading-none my-0.5">{d.getDate()}</span>
+            {isToday
+              ? <span className="text-[8px] font-bold text-[#00C47D] uppercase">Today</span>
+              : <span className="text-[8px] font-bold opacity-40 uppercase">
+                  {d.toLocaleDateString('en-GB', { month: 'short' })}
+                </span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function CourtsPage() {
   const [clubs, setClubs] = useState([])
   const [selectedClub, setSelectedClub] = useState(null)
   const [selectedCourt, setSelectedCourt] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const [slots, setSlots] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -242,13 +278,14 @@ export default function CourtsPage() {
   useEffect(() => () => sseRef.current?.close(), [])
 
   const loadSlots = async (courtId, date) => {
-    const today = date || new Date().toISOString().split('T')[0]
+    const d = date || selectedDate
+    const dateStr = d.toISOString().split('T')[0]
     if (USE_MOCKS) {
       setSlots(mockSlots.filter(s => s.courtId === courtId))
       return
     }
 
-    const r = await client.get(`/courts/${courtId}/availability?date=${today}`)
+    const r = await client.get(`/courts/${courtId}/availability?date=${dateStr}`)
     setSlots(r.data.slots)
 
     // Subscribe to SSE for live updates
@@ -259,7 +296,7 @@ export default function CourtsPage() {
     )
     es.onmessage = e => {
       const { type } = JSON.parse(e.data)
-      if (type === 'slots_updated') loadSlots(courtId, date)
+      if (type === 'slots_updated') loadSlots(courtId, d)
     }
     sseRef.current = es
   }
@@ -282,21 +319,26 @@ export default function CourtsPage() {
     }
   }
 
+  const handleDateSelect = (date) => {
+    setSelectedDate(date)
+    if (selectedCourt) loadSlots(selectedCourt.id, date)
+  }
+
   const handleClubSelect = (club) => {
     setSelectedClub(club)
     setSelectedCourt(club.courts[0])
     setPriceOracle(null)
-    loadSlots(club.courts[0].id)
+    loadSlots(club.courts[0].id, selectedDate)
     loadPriceOracle(club.id)
   }
 
   const handleCourtSelect = (court) => {
     setSelectedCourt(court)
-    loadSlots(court.id)
+    loadSlots(court.id, selectedDate)
   }
 
   const handleSlotClick = (slot) => {
-    if (slot.status === 'booked') return
+    if (slot.status === 'booked' || slot.status === 'past') return
     setSelectedSlot(slot)
     setShowModal(true)
   }
@@ -306,8 +348,7 @@ export default function CourtsPage() {
     setSelectedSlot(null)
     setToast(message)
     setTimeout(() => setToast(null), 3000)
-    // Reload slots
-    if (selectedCourt) loadSlots(selectedCourt.id)
+    if (selectedCourt) loadSlots(selectedCourt.id, selectedDate)
   }
 
   const filteredClubs = clubs.filter(c => {
@@ -325,10 +366,10 @@ export default function CourtsPage() {
       {/* Search bar */}
       <div className="mx-4 mt-4 bg-white border border-slate-200 rounded-xl flex items-center px-4 py-3 gap-3">
         <svg className="w-4 h-4 text-slate-400" viewBox="0 0 20 20" fill="none">
-          <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/>
-          <path d="M15 15l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M15 15l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
-        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search clubs..." className="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder:text-slate-400"/>
+        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search clubs..." className="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder:text-slate-400" />
       </div>
 
       {/* Leaflet Map */}
@@ -387,49 +428,57 @@ export default function CourtsPage() {
                 </div>
               </div>
 
-              {/* Slot pills — expanded when selected */}
+              {/* Expanded when selected */}
               {selectedClub?.id === club.id && (
-                <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mt-3 border-t border-slate-100 pt-3 flex flex-col gap-3" onClick={e => e.stopPropagation()}>
+                  {/* Date Picker */}
+                  <DatePicker selectedDate={selectedDate} onDateSelect={handleDateSelect} />
+
                   {/* Court selector */}
                   {club.courts.length > 1 && (
-                    <div className="flex gap-2 mb-2">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
                       {club.courts.map(court => (
                         <button key={court.id}
-                          onClick={e => { e.stopPropagation(); handleCourtSelect(court) }}
-                          className={`text-xs px-3 py-1 rounded-full border font-medium
-                            ${selectedCourt?.id === court.id ? 'bg-[#0d1b2a] text-white border-[#0d1b2a]' : 'border-slate-200 text-slate-500'}`}>
+                          onClick={() => handleCourtSelect(court)}
+                          className={`text-xs px-4 py-1.5 rounded-full border font-bold transition-all whitespace-nowrap
+                            ${selectedCourt?.id === court.id
+                              ? 'bg-[#0d1b2a] text-white border-[#0d1b2a]'
+                              : 'bg-white border-slate-200 text-slate-500 hover:border-[#00C47D]'}`}>
                           {court.name}
                         </button>
                       ))}
                     </div>
                   )}
 
-                  <p className="text-[11px] text-slate-400 mb-2 uppercase tracking-wide font-medium">Available slots</p>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wide font-bold">Select a time slot</p>
 
                   {slots.length > 0 ? (
-                    <>
-                      <div className="flex flex-wrap gap-2">
-                        {slots.map(slot => (
-                          <button key={slot.id}
-                            onClick={e => { e.stopPropagation(); handleSlotClick(slot) }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
-                              ${slot.status === 'booked'
+                    <div className="grid grid-cols-3 gap-2">
+                      {slots.map(slot => {
+                        const isPast = slot.status === 'past'
+                        const isBooked = slot.status === 'booked'
+                        const disabled = isPast || isBooked
+                        return (
+                          <button key={slot.id} disabled={disabled}
+                            onClick={() => handleSlotClick(slot)}
+                            className={`px-2 py-2 rounded-xl text-xs font-semibold border-2 transition-all text-center
+                              ${isBooked
                                 ? 'bg-red-50 text-red-300 border-red-100 line-through cursor-not-allowed'
-                                : slot.isPeak
-                                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                                : 'bg-[#e6faf3] text-[#00a066] border-[rgba(0,196,125,0.3)] hover:bg-[#d0f5e8]'
-                              }`}>
+                                : isPast
+                                  ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed opacity-40'
+                                  : slot.isPeak
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                    : 'bg-[#e6faf3] text-[#00a066] border-[rgba(0,196,125,0.3)] hover:bg-[#d0f5e8]'}`}>
                             {formatTime(slot.startTime)}
-                            {slot.isPeak && <span className="ml-1 text-[10px]">⚡</span>}
+                            {slot.isPeak && !isPast && <span className="ml-0.5 text-[9px]">⚡</span>}
                           </button>
-                        ))}
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-2">
-                        From {Math.min(...slots.filter(s => s.status !== 'booked').map(s => s.basePrice))} RON
-                      </p>
-                    </>
+                        )
+                      })}
+                    </div>
                   ) : (
-                    <p className="text-xs text-slate-400 py-2">No slots available</p>
+                    <p className="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No slots available for this date
+                    </p>
                   )}
 
                   {/* Price Oracle */}

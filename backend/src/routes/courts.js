@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 function isPeakHour(peakHours, slotTime) {
   if (!peakHours || !peakHours.length) return false;
   const hour = slotTime.getHours();
-  const dayName = ['SUN','MON','TUE','WED','THU','FRI','SAT'][slotTime.getDay()];
+  const dayName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][slotTime.getDay()];
   return peakHours.some(ph => {
-    const weekdays = ['MON','TUE','WED','THU','FRI'];
+    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
     const inDay = ph.day === 'MON-FRI' ? weekdays.includes(dayName) : ph.day === dayName;
     const [startH] = ph.start.split(':').map(Number);
     const [endH] = ph.end.split(':').map(Number);
@@ -18,7 +18,7 @@ function isPeakHour(peakHours, slotTime) {
 function generateSlots(courtId, date, bookings, court) {
   const slots = [];
   for (let hour = 7; hour < 22; hour++) {
-    const start = new Date(`${date}T${String(hour).padStart(2,'0')}:00:00`);
+    const start = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
     const end = new Date(start.getTime() + 60 * 60 * 1000);
 
     const booked = bookings.find(b =>
@@ -32,11 +32,16 @@ function generateSlots(courtId, date, bookings, court) {
       ? Number(court.basePrice) * Number(court.peakMultiplier)
       : Number(court.basePrice);
 
+    let status = booked ? 'booked' : 'available';
+    if (!booked && start < new Date()) {
+      status = 'past';
+    }
+
     slots.push({
       id: `${courtId}-${start.toISOString()}`,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
-      status: booked ? 'booked' : 'available',
+      status,
       isPeak,
       basePrice: Math.round(price * 100) / 100,
       creditCost: isPeak ? 1.5 : 1
@@ -74,7 +79,7 @@ router.get('/:id/availability', async (req, res, next) => {
 
     const startOfDay = new Date(`${date}T00:00:00`);
     const endOfDay = new Date(`${date}T23:59:59`);
-    
+
     const bookings = await prisma.booking.findMany({
       where: {
         courtId: id,
