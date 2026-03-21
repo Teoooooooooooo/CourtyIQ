@@ -22,6 +22,7 @@ app.use('/api/v1/matches', require('./routes/matches'));
 app.use('/api/v1/ai', require('./routes/ai'));
 app.use('/api/v1/pass', require('./routes/pass'));
 app.use('/api/v1/loyalty', require('./routes/loyalty'));
+app.use('/api/v1/chat', require('./routes/chat'));
 
 app.use(require('./middleware/errorHandler'));
 
