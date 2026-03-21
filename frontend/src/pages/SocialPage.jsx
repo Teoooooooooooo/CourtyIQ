@@ -117,13 +117,13 @@ export default function SocialPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-[#0d1b2a] text-sm">{profile.name || 'Unknown User'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Level {profile.skillLevel || '?'} · {profile.playStyle || '?'} · {profile.location || '?'}
+                    Level {profile.skillLevel ? Number(profile.skillLevel).toFixed(2) : '?'} · {profile.playStyle || '?'} · {profile.location || '?'}
                   </p>
                   <p className="text-xs text-slate-400 italic mt-1 truncate">"{match.reason}"</p>
                 </div>
                 {/* Match % */}
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="font-condensed text-2xl font-extrabold text-[#00C47D]">{match.score}%</span>
+                  <span className="font-condensed text-2xl font-extrabold text-[#00C47D]">{Math.round(match.score || 0)}%</span>
                   <span className="text-[10px] text-slate-400 uppercase tracking-wide">match</span>
                   <button
                     onClick={e => { e.stopPropagation(); handleChallenge(match.userId) }}

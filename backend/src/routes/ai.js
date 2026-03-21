@@ -67,11 +67,18 @@ router.get('/partner-matches', authenticate, async (req, res, next) => {
 
         // 4. Hydrate with full profiles
         const profileMap = Object.fromEntries(candidateList.map((c) => [c.userId, c]));
+        const mappedMatches = aiResult.matches
+            .map((m) => ({ ...m, profile: profileMap[m.userId] || null }))
+            .filter((m) => m.profile !== null);
+            
+        // Fallback in case AI hallucinates all IDs
         const result = {
-            matches: aiResult.matches.map((m) => ({
-                ...m,
-                profile: profileMap[m.userId] || null,
-            })),
+            matches: mappedMatches.length > 0 ? mappedMatches : candidateList.map(c => ({
+                userId: c.userId,
+                score: Math.round(Math.max(40, 100 - Math.abs(c.eloRating - myProfile.eloRating) / 4)),
+                reason: 'Similar Elo profile matches your playstyle closely',
+                profile: c
+            })).sort((a,b) => b.score - a.score).slice(0, 5)
         };
 
         cache.set(cacheKey, result, 120);
