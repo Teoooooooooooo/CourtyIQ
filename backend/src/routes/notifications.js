@@ -3,8 +3,12 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const authenticate = require('../middleware/authenticate');
 
-// ── GET /api/v1/notifications — Get user's notifications ──
-router.get('/', authenticate, async (req, res, next) => {
+// Protect all routes
+router.use(authenticate);
+
+// ── GET /api/v1/notifications ────────────────────────────
+// Fetch notifications for the logged-in user
+router.get('/', async (req, res, next) => {
   try {
     const notifications = await prisma.notification.findMany({
       where: { userId: req.user.userId },
@@ -17,15 +21,34 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
-// ── PUT /api/v1/notifications/:id/read — Mark as read ─────
-router.put('/:id/read', authenticate, async (req, res, next) => {
+// ── PUT /api/v1/notifications/:id/read ───────────────────
+// Mark a specific notification as read
+router.put('/:id/read', async (req, res, next) => {
   try {
-    const notif = await prisma.notification.findUnique({ where: { id: req.params.id } });
-    if (!notif || notif.userId !== req.user.userId) {
-      return res.status(404).json({ error: 'Notification not found' });
-    }
-    await prisma.notification.update({
+    const notification = await prisma.notification.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!notification) return res.status(404).json({ error: 'Notification not found' });
+    if (notification.userId !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
+
+    const updated = await prisma.notification.update({
       where: { id: req.params.id },
+      data: { read: true }
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── PUT /api/v1/notifications/read-all ───────────────────
+// Mark all notifications as read
+router.put('/read-all', async (req, res, next) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user.userId, read: false },
       data: { read: true }
     });
     res.json({ success: true });

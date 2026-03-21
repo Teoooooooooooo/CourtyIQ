@@ -19,6 +19,7 @@ model User {
   loyalty      LoyaltyPoint[]
   subscription Subscription?
   clubs        Club[]
+  notifications Notification[]
 }
 
 model PlayerProfile {
@@ -44,15 +45,16 @@ model Club {
 }
 
 model Court {
-  id             String    @id @default(uuid())
+  id             String     @id @default(uuid())
   clubId         String
-  club           Club      @relation(fields: [clubId], references: [id])
+  club           Club       @relation(fields: [clubId], references: [id])
   name           String
-  type           String    @default("outdoor")
+  type           String     @default("outdoor")
   basePrice      Decimal
-  peakMultiplier Decimal   @default(1.5)
-  peakHours      Json      @default("[]")
+  peakMultiplier Decimal    @default(1.5)
+  peakHours      Json       @default("[]")
   bookings       Booking[]
+  waitlists      Waitlist[]
 }
 
 model Booking {
@@ -74,6 +76,7 @@ model Booking {
 model Waitlist {
   id        String   @id @default(uuid())
   courtId   String
+  court     Court    @relation(fields: [courtId], references: [id])
   userId    String
   slotStart DateTime
   position  Int
@@ -141,9 +144,11 @@ model BannedUser {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String   // ban | info | challenge_accepted
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // e.g., "waitlist_available", "ban", "info"
   title     String
   message   String
   read      Boolean  @default(false)
+  data      Json     @default("{}") // store extra metadata like courtId or date
   createdAt DateTime @default(now())
 }
