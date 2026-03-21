@@ -136,7 +136,7 @@ function PriceOracle({ recommendations }) {
   return (
     <div className="mt-3 border-t border-slate-100 pt-3">
       <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-2 flex items-center gap-1">
-        <span className="text-[#00C47D]">✦</span> AI Price Oracle
+        <span className="text-[#00C47D]">✦</span> Best Prices
       </p>
       <div className="flex flex-col gap-1.5">
         {recommendations.map((r, i) => {
@@ -169,9 +169,8 @@ export default function CourtsPage() {
   const [selectedClub, setSelectedClub] = useState(null)
   const [selectedCourt, setSelectedCourt] = useState(null)
   const [slots, setSlots] = useState([])
-  const [selectedSlot, setSelectedSlot] = useState(null)
   const [filter, setFilter] = useState('all')
-  const [showModal, setShowModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [priceOracle, setPriceOracle] = useState(null)
   const [toast, setToast] = useState(null)
   const [mapCenter, setMapCenter] = useState([44.47, 26.09])
@@ -268,6 +267,9 @@ export default function CourtsPage() {
   }
 
   const filteredClubs = clubs.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    if (!matchesSearch) return false
+
     if (filter === 'indoor') return c.courts.some(ct => ct.indoor)
     if (filter === 'outdoor') return c.courts.some(ct => !ct.indoor)
     return true
@@ -282,7 +284,7 @@ export default function CourtsPage() {
           <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M15 15l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
-        <input placeholder="Search clubs..." className="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder:text-slate-400"/>
+        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search clubs..." className="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder:text-slate-400"/>
       </div>
 
       {/* Leaflet Map */}

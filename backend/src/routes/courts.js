@@ -33,11 +33,13 @@ function generateSlots(courtId, date, bookings, court) {
       : Number(court.basePrice);
 
     slots.push({
-      time: start.toISOString(),
+      id: `${courtId}-${start.toISOString()}`,
+      startTime: start.toISOString(),
       endTime: end.toISOString(),
       status: booked ? 'booked' : 'available',
       isPeak,
-      price: Math.round(price * 100) / 100
+      basePrice: Math.round(price * 100) / 100,
+      creditCost: isPeak ? 1.5 : 1
     });
   }
   return slots;

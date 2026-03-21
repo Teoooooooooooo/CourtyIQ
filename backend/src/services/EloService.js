@@ -22,7 +22,7 @@ class EloService {
     const avgWinner = winnersRatings.reduce((a, b) => a + b, 0) / winnersRatings.length;
     const avgLoser = losersRatings.reduce((a, b) => a + b, 0) / losersRatings.length;
     const expected = this.expectedScore(avgWinner, avgLoser);
-    const delta = Math.round(K * (1 - expected));
+    const delta = Number((K * (1 - expected)).toFixed(2));
     return { winnerDelta: delta, loserDelta: -delta };
   }
 
