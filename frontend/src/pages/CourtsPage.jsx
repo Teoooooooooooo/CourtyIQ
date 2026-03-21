@@ -1,3 +1,420 @@
+import { useState, useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { mockClubs, mockSlots } from '../mocks/index'
+import { useAuthStore } from '../store/authStore'
+import { formatTime, formatDateTime } from '../utils/format'
+import client from '../api/client'
+
+// Fix Leaflet default icon in Vite
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
+
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+
+/* ─── Booking Modal ─── */
+function BookingModal({ slot, court, club, onClose, onSuccess }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleBook = async () => {
+    if (USE_MOCKS) {
+      onSuccess('Booking confirmed! (mock)')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      const { data } = await client.post('/bookings', {
+        courtId: court.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        playerIds: [],
+      })
+
+      if (data.isPaidWithCredits) {
+        await client.post(`/bookings/${data.bookingId}/confirm`)
+        onSuccess('Booking confirmed using your credits!')
+        return
+      }
+
+      // Stripe payment
+      const result = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      })
+
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        await client.post(`/bookings/${data.bookingId}/confirm`)
+        onSuccess('Booking confirmed!')
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Booking failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl p-6 w-full max-w-[430px] animate-slide-up"
+        onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
+        <h3 className="font-condensed text-2xl font-extrabold text-[#0d1b2a] mb-1">{court.name}</h3>
+        <p className="text-sm text-slate-500 mb-1">{club.name}</p>
+        <p className="text-sm text-slate-400 mb-4">
+          {formatDateTime(slot.startTime)} · {slot.basePrice} RON
+        </p>
+
+        <div className="bg-slate-50 rounded-xl p-4 mb-4 flex justify-between items-center">
+          <div>
+            <p className="font-semibold text-[#0d1b2a]">
+              {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {slot.isPeak ? '⚡ Peak hours' : 'Off-peak'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-condensed text-2xl font-bold text-[#0d1b2a]">{slot.basePrice} RON</p>
+            <p className="text-xs text-slate-400">{slot.creditCost} credits</p>
+          </div>
+        </div>
+
+        {!USE_MOCKS && (
+          <div className="border border-slate-200 rounded-lg p-3 mb-4">
+            <CardElement options={{
+              style: {
+                base: {
+                  fontSize: '14px',
+                  color: '#0d1b2a',
+                  '::placeholder': { color: '#94a3b8' },
+                },
+              },
+            }} />
+          </div>
+        )}
+
+        {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+
+        <button onClick={handleBook} disabled={loading}
+          className="w-full bg-[#00C47D] text-[#0d1b2a] font-bold rounded-xl py-3 disabled:opacity-50 transition-opacity text-sm">
+          {loading ? 'Processing...' : `Confirm & Pay ${slot.basePrice} RON`}
+        </button>
+        <button onClick={onClose}
+          className="w-full text-slate-400 text-sm mt-2 py-2">
+          Cancel
+        </button>
+        {!USE_MOCKS && (
+          <p className="text-[11px] text-slate-400 text-center mt-2">
+            Test card: 4242 4242 4242 4242 · any date · any CVC
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Price Oracle ─── */
+function PriceOracle({ recommendations }) {
+  if (!recommendations || recommendations.length === 0) return null
+  const maxPrice = Math.max(...recommendations.map(r => r.price))
+  const minPrice = Math.min(...recommendations.map(r => r.price))
+
+  return (
+    <div className="mt-3 border-t border-slate-100 pt-3">
+      <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-2 flex items-center gap-1">
+        <span className="text-[#00C47D]">✦</span> AI Price Oracle
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {recommendations.map((r, i) => {
+          const pct = maxPrice > 0 ? (r.price / maxPrice) * 100 : 0
+          const isMin = r.price === minPrice
+          const isMax = r.price === maxPrice
+          return (
+            <div key={i} className="flex items-center gap-2 text-xs">
+              <span className="w-11 text-slate-500 font-medium">{r.time || formatTime(r.startTime)}</span>
+              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${isMin ? 'bg-[#00C47D]' : isMax ? 'bg-red-400' : 'bg-amber-400'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className={`w-14 text-right font-semibold ${isMin ? 'text-[#00C47D]' : isMax ? 'text-red-400' : 'text-slate-600'}`}>
+                {r.price} RON
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main Page ─── */
 export default function CourtsPage() {
-  return <div>CourtsPage placeholder</div>;
+  const [clubs, setClubs] = useState([])
+  const [selectedClub, setSelectedClub] = useState(null)
+  const [selectedCourt, setSelectedCourt] = useState(null)
+  const [slots, setSlots] = useState([])
+  const [selectedSlot, setSelectedSlot] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [showModal, setShowModal] = useState(false)
+  const [priceOracle, setPriceOracle] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [mapCenter, setMapCenter] = useState([44.47, 26.09])
+  const sseRef = useRef(null)
+
+  useEffect(() => {
+    if (USE_MOCKS) {
+      setClubs(mockClubs)
+      return
+    }
+    // Try geolocation, fall back to Bucharest
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords
+        setMapCenter([latitude, longitude])
+        client.get(`/clubs?lat=${latitude}&lng=${longitude}&radius=30`).then(r => setClubs(r.data))
+      },
+      () => {
+        client.get('/clubs?lat=44.47&lng=26.09&radius=30').then(r => setClubs(r.data))
+      }
+    )
+  }, [])
+
+  // Cleanup SSE on unmount
+  useEffect(() => () => sseRef.current?.close(), [])
+
+  const loadSlots = async (courtId, date) => {
+    const today = date || new Date().toISOString().split('T')[0]
+    if (USE_MOCKS) {
+      setSlots(mockSlots.filter(s => s.courtId === courtId))
+      return
+    }
+
+    const r = await client.get(`/courts/${courtId}/availability?date=${today}`)
+    setSlots(r.data.slots)
+
+    // Subscribe to SSE for live updates
+    if (sseRef.current) sseRef.current.close()
+    const token = useAuthStore.getState().token
+    const es = new EventSource(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/courts/${courtId}/stream?token=${token}`
+    )
+    es.onmessage = e => {
+      const { type } = JSON.parse(e.data)
+      if (type === 'slots_updated') loadSlots(courtId, date)
+    }
+    sseRef.current = es
+  }
+
+  const loadPriceOracle = async (clubId) => {
+    if (USE_MOCKS) {
+      setPriceOracle([
+        { time: '10:00', price: 20 },
+        { time: '14:00', price: 25 },
+        { time: '18:00', price: 35 },
+        { time: '20:00', price: 30 },
+      ])
+      return
+    }
+    try {
+      const r = await client.get(`/ai/price-oracle/${clubId}`)
+      setPriceOracle(r.data.recommendations)
+    } catch {
+      setPriceOracle(null)
+    }
+  }
+
+  const handleClubSelect = (club) => {
+    setSelectedClub(club)
+    setSelectedCourt(club.courts[0])
+    setPriceOracle(null)
+    loadSlots(club.courts[0].id)
+    loadPriceOracle(club.id)
+  }
+
+  const handleCourtSelect = (court) => {
+    setSelectedCourt(court)
+    loadSlots(court.id)
+  }
+
+  const handleSlotClick = (slot) => {
+    if (slot.status === 'booked') return
+    setSelectedSlot(slot)
+    setShowModal(true)
+  }
+
+  const handleBookingSuccess = (message) => {
+    setShowModal(false)
+    setSelectedSlot(null)
+    setToast(message)
+    setTimeout(() => setToast(null), 3000)
+    // Reload slots
+    if (selectedCourt) loadSlots(selectedCourt.id)
+  }
+
+  const filteredClubs = clubs.filter(c => {
+    if (filter === 'indoor') return c.courts.some(ct => ct.indoor)
+    if (filter === 'outdoor') return c.courts.some(ct => !ct.indoor)
+    return true
+  })
+
+  return (
+    <div className="flex flex-col pb-6">
+
+      {/* Search bar */}
+      <div className="mx-4 mt-4 bg-white border border-slate-200 rounded-xl flex items-center px-4 py-3 gap-3">
+        <svg className="w-4 h-4 text-slate-400" viewBox="0 0 20 20" fill="none">
+          <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M15 15l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <input placeholder="Search clubs..." className="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder:text-slate-400"/>
+      </div>
+
+      {/* Leaflet Map */}
+      <div className="mx-4 mt-3 rounded-xl overflow-hidden border border-slate-200">
+        <MapContainer center={mapCenter} zoom={12} style={{ height: '160px', width: '100%' }}
+          scrollWheelZoom={false} attributionControl={false}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {clubs.map(club => (
+            <Marker
+              key={club.id}
+              position={[Number(club.lat), Number(club.lng)]}
+              eventHandlers={{ click: () => handleClubSelect(club) }}
+            >
+              <Popup>
+                <span className="font-semibold text-sm">{club.name}</span>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 px-4 mt-3 overflow-x-auto pb-1">
+        {['all', 'indoor', 'outdoor', 'available'].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium border transition-colors
+              ${filter === f ? 'bg-[#0d1b2a] text-white border-[#0d1b2a]' : 'bg-white text-slate-500 border-slate-200'}`}>
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Club list */}
+      <div className="mt-3 flex flex-col gap-3 px-4">
+        {filteredClubs.map(club => (
+          <div key={club.id}
+            onClick={() => handleClubSelect(club)}
+            className={`bg-white border rounded-xl overflow-hidden cursor-pointer transition-all
+              ${selectedClub?.id === club.id ? 'border-[#00C47D] shadow-sm' : 'border-slate-200'}`}>
+            {/* Club image placeholder */}
+            <div className="h-24 bg-[#0d1b2a] relative flex items-end p-3">
+              <div className="absolute inset-0 opacity-20"
+                style={{ background: 'linear-gradient(135deg, #00C47D 0%, #0d1b2a 100%)' }} />
+              <span className="relative z-10 text-xs bg-[#00C47D] text-[#0d1b2a] font-bold px-2 py-1 rounded-md">
+                {club.courts.length} courts
+              </span>
+            </div>
+            <div className="p-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-condensed text-lg font-bold text-[#0d1b2a]">{club.name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{club.address}</p>
+                </div>
+                <div className="flex items-center gap-1 text-amber-400 text-xs font-semibold">
+                  ★ 4.8
+                </div>
+              </div>
+
+              {/* Slot pills — expanded when selected */}
+              {selectedClub?.id === club.id && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  {/* Court selector */}
+                  {club.courts.length > 1 && (
+                    <div className="flex gap-2 mb-2">
+                      {club.courts.map(court => (
+                        <button key={court.id}
+                          onClick={e => { e.stopPropagation(); handleCourtSelect(court) }}
+                          className={`text-xs px-3 py-1 rounded-full border font-medium
+                            ${selectedCourt?.id === court.id ? 'bg-[#0d1b2a] text-white border-[#0d1b2a]' : 'border-slate-200 text-slate-500'}`}>
+                          {court.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-400 mb-2 uppercase tracking-wide font-medium">Available slots</p>
+
+                  {slots.length > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {slots.map(slot => (
+                          <button key={slot.id}
+                            onClick={e => { e.stopPropagation(); handleSlotClick(slot) }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
+                              ${slot.status === 'booked'
+                                ? 'bg-red-50 text-red-300 border-red-100 line-through cursor-not-allowed'
+                                : slot.isPeak
+                                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                : 'bg-[#e6faf3] text-[#00a066] border-[rgba(0,196,125,0.3)] hover:bg-[#d0f5e8]'
+                              }`}>
+                            {formatTime(slot.startTime)}
+                            {slot.isPeak && <span className="ml-1 text-[10px]">⚡</span>}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        From {Math.min(...slots.filter(s => s.status !== 'booked').map(s => s.basePrice))} RON
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400 py-2">No slots available</p>
+                  )}
+
+                  {/* Price Oracle */}
+                  <PriceOracle recommendations={priceOracle} />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Booking modal with Stripe Elements */}
+      <Elements stripe={stripePromise}>
+        {showModal && selectedSlot && selectedCourt && selectedClub && (
+          <BookingModal
+            slot={selectedSlot}
+            court={selectedCourt}
+            club={selectedClub}
+            onClose={() => setShowModal(false)}
+            onSuccess={handleBookingSuccess}
+          />
+        )}
+      </Elements>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#0d1b2a] text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-lg z-50 animate-fade-in">
+          ✓ {toast}
+        </div>
+      )}
+
+    </div>
+  )
 }

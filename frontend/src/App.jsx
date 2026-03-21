@@ -1,74 +1,35 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/authStore';
-
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import HomePage from './pages/HomePage';
-import CourtsPage from './pages/CourtsPage';
-import SocialPage from './pages/SocialPage';
-import PassPage from './pages/PassPage';
-import SuccessPage from './pages/SuccessPage';
-import CancelPage from './pages/CancelPage';
-
-function ProtectedRoute({ children }) {
-  const token = useAuthStore((s) => s.token);
-  if (!token) return <Navigate to="/login" replace />;
-  return children;
-}
+import { Routes, Route } from 'react-router-dom'
+import AppHeader from './components/AppHeader'
+import BottomNav from './components/BottomNav'
+import Protected from './components/Protected'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import HomePage from './pages/HomePage'
+import CourtsPage from './pages/CourtsPage'
+import SocialPage from './pages/SocialPage'
+import PassPage from './pages/PassPage'
+import SuccessPage from './pages/SuccessPage'
+import CancelPage from './pages/CancelPage'
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/courts"
-        element={
-          <ProtectedRoute>
-            <CourtsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/social"
-        element={
-          <ProtectedRoute>
-            <SocialPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pass"
-        element={
-          <ProtectedRoute>
-            <PassPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/success"
-        element={
-          <ProtectedRoute>
-            <SuccessPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/cancel"
-        element={
-          <ProtectedRoute>
-            <CancelPage />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
-  );
+    <div className="min-h-screen bg-[#eef1f5] flex justify-center items-start p-4 pb-20">
+      <div className="w-full max-w-[430px] bg-[#f7f9fc] rounded-3xl overflow-hidden shadow-2xl min-h-[90vh] flex flex-col">
+        <AppHeader />
+        <div className="flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/" element={<Protected><HomePage /></Protected>} />
+            <Route path="/courts" element={<Protected><CourtsPage /></Protected>} />
+            <Route path="/social" element={<Protected><SocialPage /></Protected>} />
+            <Route path="/pass" element={<Protected><PassPage /></Protected>} />
+            <Route path="/success" element={<Protected><SuccessPage /></Protected>} />
+            <Route path="/cancel" element={<Protected><CancelPage /></Protected>} />
+          </Routes>
+        </div>
+        <BottomNav />
+      </div>
+    </div>
+  )
 }
