@@ -96,4 +96,22 @@ router.get('/:id/availability', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+// Stubs for SSE broadcast to prevent TypeError crashes
+const broadcastToCourtSubscribers = (courtId, message) => {
+  // TODO: Implement SSE broadcasting for courts
+  console.log(`[SSE Stub] Broadcasting to court ${courtId}:`, message);
+};
+
+const broadcastToUser = (userId, type, payload) => {
+  // TODO: Implement SSE broadcasting for users
+  console.log(`[SSE Stub] Broadcasting to user ${userId}:`, type, payload);
+};
+
+router.broadcastToCourtSubscribers = broadcastToCourtSubscribers;
+router.broadcastToUser = broadcastToUser;
+
+// Also attach directly to exports for direct require()
+module.exports = Object.assign(router, {
+  broadcastToCourtSubscribers,
+  broadcastToUser
+});

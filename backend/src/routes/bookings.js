@@ -11,7 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 // ── POST /api/v1/bookings — Create a booking ────────────
 router.post('/', authenticate, async (req, res, next) => {
   try {
-    const { courtId, startTime, endTime, playerIds = [] } = req.body;
+    const { courtId, startTime, endTime, playerIds = [], useCredits = false } = req.body;
     const organizerId = req.user.userId;
     const bookingId = uuidv4();
 
@@ -26,7 +26,9 @@ router.post('/', authenticate, async (req, res, next) => {
     const subscription = await prisma.subscription.findUnique({
       where: { userId: organizerId },
     });
-    const hasCredits = subscription && subscription.creditsRemaining > 0;
+    
+    // Check if user requested to use credits AND has at least 1 credit remaining
+    const hasCredits = useCredits && subscription && subscription.creditsRemaining > 0;
 
     let stripeSessionId = null;
     let checkoutUrl = null;

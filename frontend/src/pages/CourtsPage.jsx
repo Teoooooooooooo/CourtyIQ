@@ -26,6 +26,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
   const elements = useElements()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [paymentMethod, setPaymentMethod] = useState(null)
 
   const handleBook = async () => {
     if (USE_MOCKS) {
@@ -41,6 +42,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         startTime: slot.startTime,
         endTime: slot.endTime,
         playerIds: [],
+        useCredits: paymentMethod === 'credits',
       })
 
       if (data.isPaidWithCredits) {
@@ -49,16 +51,24 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         return
       }
 
-      // Stripe payment
-      const result = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: { card: elements.getElement(CardElement) },
-      })
+      // If backend returns a Checkout Session URL, redirect user to Stripe
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
 
-      if (result.error) {
-        setError(result.error.message)
-      } else {
-        await client.post(`/bookings/${data.bookingId}/confirm`)
-        onSuccess('Booking confirmed!')
+      // Fallback: If backend returns a clientSecret (PaymentIntent), use CardElement
+      if (data.clientSecret) {
+        const result = await stripe.confirmCardPayment(data.clientSecret, {
+          payment_method: { card: elements.getElement(CardElement) },
+        })
+
+        if (result.error) {
+          setError(result.error.message)
+        } else {
+          await client.post(`/bookings/${data.bookingId}/confirm`)
+          onSuccess('Booking confirmed!')
+        }
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Booking failed')
@@ -93,8 +103,22 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
           </div>
         </div>
 
-        {!USE_MOCKS && (
-          <div className="border border-slate-200 rounded-lg p-3 mb-4">
+        {/* Payment Buttons / Options */}
+        {!paymentMethod && (
+          <div className="flex flex-col gap-3">
+            <button onClick={() => setPaymentMethod('card')} className="w-full border-2 border-[#0d1b2a] text-[#0d1b2a] font-bold rounded-xl py-3 hover:bg-slate-50 transition-colors">
+              Pay in RON
+            </button>
+            <button onClick={() => setPaymentMethod('credits')} className="w-full bg-[#0d1b2a] text-[#00C47D] font-bold rounded-xl py-3 hover:bg-[#1a2b3c] transition-colors relative overflow-hidden">
+              <span className="relative z-10">Pay with Credits</span>
+              <div className="absolute inset-0 bg-[#00C47D] opacity-10" />
+            </button>
+          </div>
+        )}
+
+        {/* Card Input Box (only if Pay in RON selected) */}
+        {paymentMethod === 'card' && !USE_MOCKS && (
+          <div className="border border-slate-200 rounded-lg p-3 mb-4 animate-fade-in">
             <CardElement options={{
               style: {
                 base: {
@@ -107,18 +131,36 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
           </div>
         )}
 
-        {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+        {error && <p className="text-red-500 text-sm mb-3 text-center animate-fade-in">{error}</p>}
 
-        <button onClick={handleBook} disabled={loading}
-          className="w-full bg-[#00C47D] text-[#0d1b2a] font-bold rounded-xl py-3 disabled:opacity-50 transition-opacity text-sm">
-          {loading ? 'Processing...' : `Confirm & Pay ${slot.basePrice} RON`}
-        </button>
-        <button onClick={onClose}
-          className="w-full text-slate-400 text-sm mt-2 py-2">
-          Cancel
-        </button>
-        {!USE_MOCKS && (
-          <p className="text-[11px] text-slate-400 text-center mt-2">
+        {/* Action Buttons */}
+        {paymentMethod && (
+          <div className="animate-fade-in">
+            <button onClick={handleBook} disabled={loading}
+              className="w-full bg-[#00C47D] text-[#0d1b2a] font-bold rounded-xl py-3 disabled:opacity-50 transition-opacity text-sm">
+              {loading 
+                ? 'Processing...' 
+                : paymentMethod === 'credits' 
+                  ? `Confirm & Pay ${slot.creditCost || 1} Credit` 
+                  : `Confirm & Pay ${slot.basePrice} RON`
+              }
+            </button>
+            <button onClick={() => { setPaymentMethod(null); setError(null); }}
+              className="w-full text-slate-400 text-sm mt-3 py-2 hover:text-slate-600 transition-colors">
+              Back to options
+            </button>
+          </div>
+        )}
+        
+        {!paymentMethod && (
+          <button onClick={onClose}
+            className="w-full text-slate-400 text-sm mt-2 py-2">
+            Cancel
+          </button>
+        )}
+
+        {paymentMethod === 'card' && !USE_MOCKS && (
+          <p className="text-[11px] text-slate-400 text-center mt-2 animate-fade-in">
             Test card: 4242 4242 4242 4242 · any date · any CVC
           </p>
         )}

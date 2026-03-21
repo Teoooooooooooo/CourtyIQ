@@ -22,6 +22,7 @@ export default function SocialPage() {
   const [h2h, setH2h] = useState(null)
   const [winPredictor, setWinPredictor] = useState(null)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [showInbox, setShowInbox] = useState(false)
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
@@ -93,9 +94,22 @@ export default function SocialPage() {
     <div className="flex flex-col pb-6">
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-2">
-        <h2 className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">Find a Partner</h2>
-        <p className="text-xs text-slate-400 mt-0.5">AI-matched players based on your style</p>
+      <div className="px-4 pt-4 pb-2 flex justify-between items-start">
+        <div>
+          <h2 className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">Find a Partner</h2>
+          <p className="text-xs text-slate-400 mt-0.5">AI-matched players based on your style</p>
+        </div>
+        <button onClick={() => setShowInbox(true)} className="relative p-2.5 text-slate-400 hover:text-[#0d1b2a] transition-colors rounded-full hover:bg-slate-100">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          {challenges.length > 0 && (
+            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white box-content"></span>
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Partner match cards */}
@@ -190,46 +204,60 @@ export default function SocialPage() {
         })}
       </div>
 
-      {/* Incoming challenges */}
-      {challenges.length > 0 && (
-        <div className="px-4 mt-4">
-          <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-3">
-            Incoming challenges
-          </p>
-          <div className="flex flex-col gap-2">
-            {Array.isArray(challenges) && challenges.map(c => {
-              const challengerName = c.challenger?.name || c.fromUserName || 'Unknown Player'
-              const colors = getAvatarColor(challengerName)
-              const d = new Date(c.proposedTime)
-              return (
-                <div key={c.id} className="bg-white border border-slate-200 rounded-xl p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-condensed font-bold text-sm flex-shrink-0 ${colors.bg} ${colors.text}`}>
-                      {getInitials(challengerName)}
+      {/* Inbox Modal */}
+      {showInbox && (
+        <div className="fixed inset-0 bg-black/50 flex flex-col justify-end sm:justify-center sm:items-center z-50 sm:p-4" onClick={() => setShowInbox(false)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl p-5 w-full sm:max-w-[400px] shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 sm:hidden" />
+            
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">Inbox</h3>
+              <button onClick={() => setShowInbox(false)} className="text-slate-400 p-1.5 hover:text-[#0d1b2a] hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            {challenges.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-sm font-medium text-slate-400">You have no new challenges.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {Array.isArray(challenges) && challenges.map(c => {
+                  const p = c.fromUserProfile || c.challenger || {}
+                  const challengerName = p.name || c.fromUserName || 'Unknown Player'
+                  const colors = getAvatarColor(challengerName)
+                  const d = new Date(c.proposedTime)
+                  return (
+                    <div key={c.id} className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-condensed font-extrabold text-sm flex-shrink-0 ${colors.bg} ${colors.text}`}>
+                          {getInitials(challengerName)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-[#0d1b2a] text-[15px]">{challengerName}</p>
+                          <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                            Level {p.skillLevel ? Number(p.skillLevel).toFixed(2) : '?'} · Elo {p.eloRating || '?'} · {p.playStyle || '?'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
+                            {d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 italic mb-3">"{c.message || 'Challenge received!'}"</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => respondToChallenge(c.id, 'accept')} className="flex-1 bg-[#00C47D] text-[#0d1b2a] text-xs font-bold py-2.5 rounded-xl shadow-sm transition-transform active:scale-95">
+                          Accept
+                        </button>
+                        <button onClick={() => respondToChallenge(c.id, 'decline')} className="flex-1 bg-white border border-slate-200 text-slate-600 text-xs font-bold py-2.5 rounded-xl transition-colors hover:bg-slate-100">
+                          Decline
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-[#0d1b2a] text-sm">{challengerName}</p>
-                      <p className="text-xs text-slate-400">
-                        {d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 italic mb-3">"{c.message || 'Challenge received!'}"</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => respondToChallenge(c.id, 'accept')}
-                      className="flex-1 bg-[#00C47D] text-[#0d1b2a] text-xs font-semibold py-2 rounded-lg transition-transform active:scale-95">
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => respondToChallenge(c.id, 'decline')}
-                      className="flex-1 border border-slate-200 text-slate-500 text-xs font-semibold py-2 rounded-lg transition-colors hover:bg-slate-50">
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

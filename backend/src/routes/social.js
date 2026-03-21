@@ -52,18 +52,22 @@ router.get('/challenges/incoming', authenticate, async (req, res, next) => {
             orderBy: { createdAt: 'desc' },
         });
 
-        // Hydrate fromUser names
+        // Hydrate fromUser profiles and names
         const userIds = [...new Set(challenges.map((c) => c.fromUserId))];
         const users = await prisma.user.findMany({
             where: { id: { in: userIds } },
-            select: { id: true, name: true },
+            include: { profile: true },
         });
-        const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+        const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-        const result = challenges.map((c) => ({
-            ...c,
-            fromUserName: userMap[c.fromUserId] ?? null,
-        }));
+        const result = challenges.map((c) => {
+            const u = userMap[c.fromUserId];
+            return {
+                ...c,
+                fromUserName: u?.name ?? null,
+                fromUserProfile: u?.profile ?? null,
+            };
+        });
 
         res.json({ challenges: result });
     } catch (err) {
