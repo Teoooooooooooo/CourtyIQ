@@ -56,6 +56,7 @@ router.get('/me', authenticate, async (req, res, next) => {
     const entries = await prisma.waitlist.findMany({
       where: { userId: req.user.userId },
       orderBy: { createdAt: 'desc' },
+      include: { court: { include: { club: true } } },
     });
     res.json(entries);
   } catch (err) {

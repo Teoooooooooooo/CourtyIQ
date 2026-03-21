@@ -22,21 +22,25 @@ export default function HomePage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleCancel = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+  const handleCancel = async (bookingId, isWaitlist = false) => {
+    if (!window.confirm(`Are you sure you want to cancel this ${isWaitlist ? 'waitlist entry' : 'booking'}?`)) return
     
     if (USE_MOCKS) {
       setUpcomingBookings(prev => prev.filter(b => b.id !== bookingId))
       if (nextBooking?.id === bookingId) setNextBooking(null)
       triggerRefresh()
-      showToast('Booking cancelled (mock)')
+      showToast(`${isWaitlist ? 'Waitlist entry' : 'Booking'} cancelled (mock)`)
       return
     }
 
     try {
-      await client.delete(`/bookings/${bookingId}`)
+      if (isWaitlist) {
+        await client.delete(`/waitlist/${bookingId}`)
+      } else {
+        await client.delete(`/bookings/${bookingId}`)
+      }
       triggerRefresh()
-      showToast('Booking cancelled successfully')
+      showToast(isWaitlist ? 'Removed from waitlist' : 'Booking cancelled successfully')
     } catch (err) {
       showToast(err.response?.data?.error || 'Cancellation failed')
     }
@@ -56,12 +60,25 @@ export default function HomePage() {
         const s = r.data.profile?.stats || r.data.stats || r.data
         setStats({ ...s, loyaltyTotal: r.data.loyaltyTotal })
       }),
-      client.get('/users/me/bookings').then(r => {
-        const upcoming = r.data.filter(
-          b => b.status === 'confirmed' && new Date(b.startTime) > new Date()
-        ).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-        setNextBooking(upcoming[0] || null)
-        setUpcomingBookings(upcoming.slice(0, 3))
+      Promise.all([
+        client.get('/users/me/bookings').catch(() => ({ data: [] })),
+        client.get('/waitlist/me').catch(() => ({ data: [] }))
+      ]).then(([bkRes, wlRes]) => {
+        const upBk = (bkRes.data || []).filter(b => b.status === 'confirmed' && new Date(b.startTime) > new Date())
+          .map(b => ({ ...b, type: 'booking', sortTime: new Date(b.startTime).getTime() }))
+        
+        const upWl = (wlRes.data || []).filter(w => new Date(w.slotStart) > new Date())
+          .map(w => ({
+            id: w.id,
+            startTime: w.slotStart,
+            court: w.court,
+            type: 'waitlist',
+            sortTime: new Date(w.slotStart).getTime()
+          }))
+        
+        const combined = [...upBk, ...upWl].sort((a, b) => a.sortTime - b.sortTime)
+        setNextBooking(combined.find(i => i.type === 'booking') || null)
+        setUpcomingBookings(combined.slice(0, 5))
       }),
       client.get('/ai/slot-suggestion')
         .then(r => setAiSuggestion(r.data.slot))
@@ -176,9 +193,21 @@ export default function HomePage() {
                     <span className={`text-sm font-bold ${b.result === 'win' ? 'text-[#00C47D]' : 'text-red-400'}`}>
                       {b.result === 'win' ? 'W' : 'L'}
                     </span>
+                  ) : b.type === 'waitlist' ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-bold text-orange-600 uppercase tracking-tight bg-orange-100 px-2 py-0.5 rounded border border-orange-200">
+                        Waitlist
+                      </span>
+                      <button 
+                        onClick={() => handleCancel(b.id, true)}
+                        className="text-[10px] font-bold text-slate-400 hover:text-red-600 uppercase tracking-tight"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   ) : (
                     <button 
-                      onClick={() => handleCancel(b.id)}
+                      onClick={() => handleCancel(b.id, false)}
                       className="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-tight bg-red-50 px-2 py-1 rounded"
                     >
                       Cancel
