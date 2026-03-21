@@ -30,37 +30,21 @@ router.post('/', authenticate, async (req, res, next) => {
     // Check if user requested to use credits AND has at least 1 credit remaining
     const hasCredits = useCredits && subscription && subscription.creditsRemaining > 0;
 
-    let stripeSessionId = null;
-    let checkoutUrl = null;
+    let stripePaymentIntentId = null;
+    let clientSecret = null;
 
-    // 4. If no credits → create Stripe Checkout Session
+    // 4. If no credits → create Stripe Payment Intent
     if (!hasCredits) {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/cancel`,
-        client_reference_id: organizerId,
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalPrice * 100),
+        currency: 'ron',
         metadata: {
           userId: organizerId,
           bookingId: bookingId,
         },
-        line_items: [
-          {
-            price_data: {
-              currency: 'eur',
-              unit_amount: Math.round(totalPrice * 100),
-              product_data: {
-                name: 'Court Booking',
-                description: `Date: ${new Date(startTime).toLocaleString()}`,
-              },
-            },
-            quantity: 1,
-          },
-        ],
       });
-      stripeSessionId = session.id;
-      checkoutUrl = session.url;
+      stripePaymentIntentId = paymentIntent.id;
+      clientSecret = paymentIntent.client_secret;
     }
 
     // 5. Transaction: check availability + create booking
@@ -81,7 +65,7 @@ router.post('/', authenticate, async (req, res, next) => {
           endTime: new Date(endTime),
           status: hasCredits ? 'confirmed' : 'pending',
           totalPrice,
-          stripePaymentId: stripeSessionId, // Store session ID here temporarily
+          stripePaymentId: stripePaymentIntentId, // Store intent ID here temporarily
           creditsUsed: hasCredits ? 1 : 0,
           playerIds: [organizerId, ...playerIds],
         },
@@ -117,10 +101,10 @@ router.post('/', authenticate, async (req, res, next) => {
       });
     }
 
-    // 6. Return Checkout URL for Stripe
+    // 6. Return PaymentIntent Client Secret for inline Stripe CardElement
     res.status(201).json({
       bookingId: booking.id,
-      url: checkoutUrl,
+      clientSecret,
       totalPrice,
       isPaidWithCredits: false,
     });
