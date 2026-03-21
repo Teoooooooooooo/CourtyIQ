@@ -5,12 +5,14 @@ export const mockUser = {
 
 export const mockClubs = [
   { id: 'club-1', name: 'Padel Arena Bucharest', address: 'Str. Victoriei 12', city: 'Bucharest', lat: 44.4268, lng: 26.1025,
+    imageUrl: '/src/assets/padel1.jpg',
     courts: [
       { id: 'court-1', name: 'Court 1', surface: 'artificial_grass', indoor: false },
       { id: 'court-2', name: 'Court 2', surface: 'artificial_grass', indoor: true },
     ]
   },
   { id: 'club-2', name: 'Smash Club', address: 'Bd. Unirii 40', city: 'Bucharest', lat: 44.4189, lng: 26.1052,
+    imageUrl: '/src/assets/padel2.webp',
     courts: [{ id: 'court-3', name: 'Court 1', surface: 'artificial_grass', indoor: false }]
   },
 ];

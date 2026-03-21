@@ -9,6 +9,15 @@ import { useAuthStore } from '../store/authStore'
 import { formatTime, formatDateTime } from '../utils/format'
 import client from '../api/client'
 
+// Import premium club images
+import padel1 from '../assets/padel1.jpg'
+import padel2 from '../assets/padel2.webp'
+import padel3 from '../assets/padel3.jpg'
+import padel4 from '../assets/padel4.jpg'
+import padel5 from '../assets/padel5.webp'
+
+const CLUB_IMAGES = [padel1, padel2, padel3, padel4, padel5]
+
 // Fix Leaflet default icon in Vite
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -288,13 +297,12 @@ function PriceOracle({ recommendations }) {
       </p>
       <div className="flex flex-col gap-1.5">
         {recommendations.map((r, i) => {
-          const displayTime = r.time ? (r.time.includes('T') ? formatTime(r.time) : r.time) : formatTime(r.startTime)
           const pct = maxPrice > 0 ? (r.price / maxPrice) * 100 : 0
           const isMin = r.price === minPrice
           const isMax = r.price === maxPrice
           return (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="w-11 text-slate-500 font-medium">{displayTime}</span>
+              <span className="w-11 text-slate-500 font-medium">{r.time || formatTime(r.startTime)}</span>
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${isMin ? 'bg-[#00C47D]' : isMax ? 'bg-red-400' : 'bg-amber-400'}`}
@@ -513,15 +521,28 @@ export default function CourtsPage() {
         {filteredClubs.map(club => (
           <div key={club.id}
             onClick={() => handleClubSelect(club)}
-            className={`bg-white border rounded-xl overflow-hidden cursor-pointer transition-all
+            className={`bg-white border rounded-2xl overflow-hidden cursor-pointer transition-all group hover:shadow-md
               ${selectedClub?.id === club.id ? 'border-[#00C47D] shadow-sm' : 'border-slate-200'}`}>
-            {/* Club image placeholder */}
-            <div className="h-24 bg-[#0d1b2a] relative flex items-end p-3">
-              <div className="absolute inset-0 opacity-20"
-                style={{ background: 'linear-gradient(135deg, #00C47D 0%, #0d1b2a 100%)' }} />
-              <span className="relative z-10 text-xs bg-[#00C47D] text-[#0d1b2a] font-bold px-2 py-1 rounded-md">
-                {club.courts.length} courts
-              </span>
+            
+            {/* Club Image Section */}
+            <div className="h-28 relative overflow-hidden bg-[#0d1b2a]">
+              <img 
+                src={club.imageUrl || CLUB_IMAGES[clubs.indexOf(club) % CLUB_IMAGES.length]} 
+                alt={club.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80" />
+              
+              <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                <span className="text-[10px] bg-[#00C47D] text-[#0d1b2a] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-sm">
+                  {club.courts.length} {club.courts.length === 1 ? 'Court' : 'Courts'}
+                </span>
+                {club.courts.some(ct => ct.indoor) && (
+                  <span className="text-[10px] bg-white/90 text-[#0d1b2a] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                    Indoor
+                  </span>
+                )}
+              </div>
             </div>
             <div className="p-3">
               <div className="flex items-start justify-between">
