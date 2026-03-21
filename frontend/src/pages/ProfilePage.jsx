@@ -11,22 +11,28 @@ export default function ProfilePage() {
   const navigate = useNavigate()
 
   const [fullData, setFullData] = useState(null)
+  const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const refreshTrigger = useAuthStore(s => s.refreshTrigger)
 
   useEffect(() => {
-    async function fetchFullProfile() {
+    async function fetchData() {
       if (!token) return
+      setLoading(true)
       try {
-        const res = await client.get('/users/me')
-        setFullData(res.data)
+        const [profileRes, matchesRes] = await Promise.all([
+          client.get('/users/me'),
+          client.get('/matches/me')
+        ])
+        setFullData(profileRes.data)
+        setMatches(matchesRes.data || [])
       } catch (err) {
-        console.error("Failed to fetch profile", err)
+        console.error("Failed to fetch profile data", err)
       } finally {
         setLoading(false)
       }
     }
-    fetchFullProfile()
+    fetchData()
   }, [token, refreshTrigger])
 
   const handleLogout = () => {
@@ -56,6 +62,18 @@ export default function ProfilePage() {
       </div>
     )
   }
+
+  // Derive stats from matches array for accuracy
+  const derivedWins = matches.filter(m => {
+    const isTeam1 = m.team1Ids.includes(user.id);
+    return (isTeam1 && m.winnerTeam === 1) || (!isTeam1 && m.winnerTeam === 2);
+  }).length;
+
+  const derivedLosses = matches.filter(m => {
+    const isTeam1 = m.team1Ids.includes(user.id);
+    const hasWinner = m.winnerTeam === 1 || m.winnerTeam === 2;
+    return hasWinner && ((isTeam1 && m.winnerTeam === 2) || (!isTeam1 && m.winnerTeam === 1));
+  }).length;
 
   return (
     <div className="p-5 pb-10 space-y-6 bg-gray-50 min-h-screen font-sans">
@@ -110,15 +128,69 @@ export default function ProfilePage() {
               <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-purple-50/50 hover:border-purple-100 transition-colors">
                 <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Match Record</p>
                 <p className="text-lg font-black text-[#0d1b2a]">
-                  <span className="text-green-600">{stats.wins}W</span>
+                  <span className="text-green-600">{derivedWins}W</span>
                   <span className="text-gray-300 mx-1">-</span>
-                  <span className="text-red-500">{stats.losses}L</span>
+                  <span className="text-red-500">{derivedLosses}L</span>
                 </p>
               </div>
               <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-orange-50/50 hover:border-orange-100 transition-colors">
                 <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Play Style</p>
                 <p className="text-sm font-bold text-[#0d1b2a] capitalize">{profile.playStyle || 'All-Court'}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Matches History Section */}
+          <div className="pt-6 border-t border-gray-50">
+            <div className="flex justify-between items-end mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Matches History</h3>
+              <span className="text-xl font-black text-[#0d1b2a]">{matches.length} <span className="text-[10px] text-gray-400 uppercase tracking-normal">Played</span></span>
+            </div>
+
+            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+              {matches.length > 0 ? (
+                matches.map((match) => {
+                  const isTeam1 = match.team1Ids.includes(user.id);
+                  const isWinner = (isTeam1 && match.winnerTeam === 1) || (!isTeam1 && match.winnerTeam === 2);
+                  return (
+                    <div key={match.id} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${isWinner ? 'bg-[#e6faf3] text-[#00a066]' : 'bg-red-50 text-red-500'}`}>
+                            {isWinner ? 'W' : 'L'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-[#0d1b2a] group-hover:text-[#00C47D] transition-colors line-clamp-1">{match.clubName}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              {new Date(match.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} • {match.courtName}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs font-black ${isWinner ? 'text-[#00a066]' : 'text-red-400'}`}>
+                            {isWinner ? '+20' : '-15'} <span className="text-[9px] opacity-60">ELO</span>
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Teams Detail */}
+                      <div className="flex items-center justify-between text-[11px] font-medium text-gray-500 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+                        <div className={`flex-1 truncate ${isWinner && isTeam1 ? 'text-[#00a066] font-bold' : (!isWinner && isTeam1 ? 'text-gray-400' : '')}`}>
+                          {match.team1Names?.join(' & ')}
+                        </div>
+                        <div className="px-2 text-[9px] text-gray-300 font-black italic">VS</div>
+                        <div className={`flex-1 text-right truncate ${isWinner && !isTeam1 ? 'text-[#00a066] font-bold' : (!isWinner && !isTeam1 ? 'text-gray-400' : '')}`}>
+                          {match.team2Names?.join(' & ')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-3xl">
+                  <p className="text-xs text-gray-400 italic">No matches played yet. Your match history will appear here.</p>
+                </div>
+              )}
             </div>
           </div>
 

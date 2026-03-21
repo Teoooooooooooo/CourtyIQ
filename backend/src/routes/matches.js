@@ -178,4 +178,72 @@ router.get('/h2h/:userId', authenticate, async (req, res, next) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// GET /api/v1/matches/me — current user's match history
+// ---------------------------------------------------------------------------
+router.get('/me', authenticate, async (req, res, next) => {
+    try {
+        const myId = req.user.userId;
+
+        // Fetch all matches where user participated
+        const matches = await prisma.match.findMany({
+            where: {
+                OR: [
+                    { team1Ids: { array_contains: myId } },
+                    { team2Ids: { array_contains: myId } },
+                ],
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // Manual join with bookings since no schema relation
+        const bookingIds = [...new Set(matches.map(m => m.bookingId))].filter(Boolean);
+        let bookings = [];
+        if (bookingIds.length > 0) {
+            bookings = await prisma.booking.findMany({
+                where: { id: { in: bookingIds } },
+                include: {
+                    court: {
+                        include: { club: true }
+                    }
+                }
+            });
+        }
+
+        const bookingMap = Object.fromEntries(bookings.map(b => [b.id, b]));
+
+        // Fetch all unique user names involved in these matches
+        const allUserIds = new Set();
+        matches.forEach(m => {
+            m.team1Ids.forEach(id => allUserIds.add(id));
+            m.team2Ids.forEach(id => allUserIds.add(id));
+        });
+
+        const players = await prisma.user.findMany({
+            where: { id: { in: Array.from(allUserIds) } },
+            select: { id: true, name: true }
+        });
+        const userMap = Object.fromEntries(players.map(u => [u.id, u.name]));
+
+        // Get a fallback club for matches without bookings (demo data)
+        const fallbackClub = await prisma.club.findFirst();
+
+        const results = matches.map(m => {
+            const b = bookingMap[m.bookingId];
+            return {
+                ...m,
+                clubName: b?.court?.club?.name || fallbackClub?.name || 'Padel City',
+                courtName: b?.court?.name || 'Center Court',
+                date: b?.startTime || m.createdAt,
+                team1Names: m.team1Ids.map(id => userMap[id] || 'Unknown'),
+                team2Names: m.team2Ids.map(id => userMap[id] || 'Unknown')
+            };
+        });
+
+        res.json(results);
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;

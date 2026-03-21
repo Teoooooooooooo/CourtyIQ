@@ -41,7 +41,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
       client.get(`/users/search?q=${playerSearch}`).then(r => {
         const invitedIds = invitedPlayers.map(p => p.id)
         setSearchResults(r.data.filter(u => !invitedIds.includes(u.id)))
-      }).catch(() => {})
+      }).catch(() => { })
     }, 300)
     return () => clearTimeout(timer)
   }, [playerSearch, invitedPlayers])
@@ -158,7 +158,7 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
         {!paymentMethod && (
           <div className="mb-4 animate-fade-in relative z-20">
             <p className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Add Players (Optional)</p>
-            
+
             <div className="flex flex-wrap gap-2 mb-2">
               {invitedPlayers.map(p => (
                 <div key={p.id} className="bg-slate-100 border border-slate-200 text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all">
@@ -170,11 +170,11 @@ function BookingModal({ slot, court, club, onClose, onSuccess }) {
 
             {invitedPlayers.length < 3 && (
               <div className="relative">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={playerSearch}
                   onChange={e => setPlayerSearch(e.target.value)}
-                  placeholder="Search by name..." 
+                  placeholder="Search by name..."
                   className="w-full bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-[#00C47D] transition-colors"
                 />
                 {searchResults.length > 0 && (
@@ -337,8 +337,8 @@ function DatePicker({ selectedDate, onDateSelect }) {
             {isToday
               ? <span className="text-[8px] font-bold text-[#00C47D] uppercase">Today</span>
               : <span className="text-[8px] font-bold opacity-40 uppercase">
-                  {d.toLocaleDateString('en-GB', { month: 'short' })}
-                </span>}
+                {d.toLocaleDateString('en-GB', { month: 'short' })}
+              </span>}
           </button>
         )
       })}
