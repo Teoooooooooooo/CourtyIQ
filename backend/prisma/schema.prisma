@@ -115,3 +115,11 @@ model LoyaltyPoint {
   reason    String
   createdAt DateTime @default(now())
 }
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  text       String
+  createdAt  DateTime @default(now())
+}

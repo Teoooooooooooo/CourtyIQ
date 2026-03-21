@@ -23,16 +23,23 @@ export default function SocialPage() {
   const [winPredictor, setWinPredictor] = useState(null)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [showInbox, setShowInbox] = useState(false)
+  const [showChats, setShowChats] = useState(false)
+  const [chatsList, setChatsList] = useState([])
+  const [activeChat, setActiveChat] = useState(null)
+  const [chatMessages, setChatMessages] = useState([])
+  const [newMessage, setNewMessage] = useState('')
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
     if (USE_MOCKS) {
       setPartnerMatches(mockPartnerMatches)
       setChallenges(mockChallenges)
+      setChatsList([{ id: 'mock1', name: 'Mihai Ionescu', profile: { skillLevel: 4.1 }, lastMessage: 'See you on the court!', lastMessageAt: new Date() }])
       return
     }
     client.get('/ai/partner-matches').then(r => setPartnerMatches(r.data.matches || [])).catch(() => {})
     client.get('/social/challenges/incoming').then(r => setChallenges(r.data.challenges || r.data || [])).catch(() => {})
+    client.get('/chat').then(r => setChatsList(r.data || [])).catch(() => {})
   }, [])
 
   const handlePlayerClick = (match) => {
@@ -83,6 +90,45 @@ export default function SocialPage() {
     }
     setChallenges(prev => prev.filter(c => c.id !== id))
     showToast(`Challenge ${action}ed!`)
+    if (action === 'accept' && !USE_MOCKS) {
+      // Reload active chats
+      client.get('/chat').then(r => setChatsList(r.data || [])).catch(() => {})
+    }
+  }
+
+  const loadMessages = async (opponentId) => {
+    if (USE_MOCKS) {
+      setChatMessages([{ id: 1, senderId: opponentId, text: 'Hello!', createdAt: new Date() }])
+      return
+    }
+    try {
+      const { data } = await client.get(`/chat/${opponentId}`)
+      setChatMessages(data)
+    } catch {}
+  }
+
+  const handleOpenChat = (partner) => {
+    setActiveChat(partner)
+    loadMessages(partner.id)
+  }
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    if (!newMessage.trim() || !activeChat) return
+    const txt = newMessage.trim()
+    setNewMessage('')
+    
+    if (USE_MOCKS) {
+      setChatMessages(prev => [...prev, { id: Date.now(), senderId: 'me', text: txt, createdAt: new Date() }])
+      return
+    }
+    
+    try {
+      const { data } = await client.post(`/chat/${activeChat.id}`, { text: txt })
+      setChatMessages(prev => [...prev, data])
+    } catch {
+      showToast('Failed to send message')
+    }
   }
 
   const showToast = (msg) => {
@@ -99,17 +145,27 @@ export default function SocialPage() {
           <h2 className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">Find a Partner</h2>
           <p className="text-xs text-slate-400 mt-0.5">AI-matched players based on your style</p>
         </div>
-        <button onClick={() => setShowInbox(true)} className="relative p-2.5 text-slate-400 hover:text-[#0d1b2a] transition-colors rounded-full hover:bg-slate-100">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          {challenges.length > 0 && (
-            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white box-content"></span>
-            </span>
-          )}
-        </button>
+        <div className="flex gap-2">
+          {/* Chat Icon */}
+          <button onClick={() => setShowChats(true)} className="relative p-2.5 text-slate-400 hover:text-[#0d1b2a] transition-colors rounded-full hover:bg-slate-100">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+               <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
+          
+          {/* Bell Icon */}
+          <button onClick={() => setShowInbox(true)} className="relative p-2.5 text-slate-400 hover:text-[#0d1b2a] transition-colors rounded-full hover:bg-slate-100">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {challenges.length > 0 && (
+              <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white box-content"></span>
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Partner match cards */}
@@ -258,6 +314,107 @@ export default function SocialPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Chats Modal */}
+      {showChats && (
+        <div className="fixed inset-0 bg-black/50 flex flex-col justify-end sm:justify-center sm:items-center z-50 sm:p-4" onClick={() => { setShowChats(false); setActiveChat(null); }}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl p-5 w-full sm:max-w-[400px] shadow-2xl h-[85vh] sm:h-[600px] max-h-[85vh] flex flex-col animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden flex-shrink-0" />
+            
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                {activeChat && (
+                  <button onClick={() => setActiveChat(null)} className="p-1 -ml-2 text-slate-400 hover:bg-slate-100 rounded-full">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                )}
+                <h3 className="font-condensed text-2xl font-extrabold text-[#0d1b2a]">
+                  {activeChat ? activeChat.name : 'Chats'}
+                </h3>
+              </div>
+              <button onClick={() => { setShowChats(false); setActiveChat(null); }} className="text-slate-400 p-1.5 hover:text-[#0d1b2a] hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col scrollbar-hide">
+              {!activeChat ? (
+                /* Chat List View */
+                chatsList.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center py-10 opacity-70">
+                    <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <p className="text-sm font-medium text-slate-400">No active chats.</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Accept challenges to start chatting with other players.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {chatsList.map(chat => {
+                      const colors = getAvatarColor(chat.name || 'User')
+                      return (
+                        <div key={chat.id} onClick={() => handleOpenChat(chat)} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 cursor-pointer active:bg-slate-100 transition-colors">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center font-condensed font-extrabold text-sm flex-shrink-0 ${colors.bg} ${colors.text}`}>
+                            {getInitials(chat.name || 'User')}
+                          </div>
+                          <div className="flex-1 min-w-0 border-b border-slate-100 pb-2">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <p className="font-semibold text-[#0d1b2a] text-[15px] truncate">{chat.name}</p>
+                              {chat.lastMessageAt && (
+                                <p className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
+                                  {formatDateTime(chat.lastMessageAt).split('·')[1] || formatDateTime(chat.lastMessageAt)}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 truncate">{chat.lastMessage || 'Say hello!'}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              ) : (
+                /* Direct Message View */
+                <div className="flex flex-col flex-1 pb-2">
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-1">
+                    {chatMessages.map(msg => {
+                      const isMe = msg.senderId === 'me' || msg.senderId !== activeChat.id;
+                      return (
+                        <div key={msg.id} className={`flex flex-col max-w-[80%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
+                          <div className={`px-4 py-2.5 rounded-2xl text-[14px] ${isMe ? 'bg-[#00C47D] text-[#0d1b2a] rounded-br-sm font-medium shadow-sm' : 'bg-slate-100 text-[#0d1b2a] rounded-bl-sm'}`}>
+                            {msg.text}
+                          </div>
+                          <p className="text-[9px] text-slate-400 mt-1 font-medium">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      )
+                    })}
+                    {chatMessages.length === 0 && (
+                      <div className="h-full flex items-center justify-center text-center">
+                        <p className="text-xs text-slate-400">Start the conversation with {activeChat.name}!</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Chat Input Box */}
+                  <form onSubmit={handleSendMessage} className="mt-3 flex items-center gap-2 flex-shrink-0 bg-slate-50 p-1.5 rounded-full border border-slate-200">
+                    <input 
+                      type="text" 
+                      value={newMessage}
+                      onChange={e => setNewMessage(e.target.value)}
+                      placeholder="Type a message..." 
+                      className="flex-1 bg-transparent text-sm pl-4 pr-2 outline-none py-2"
+                    />
+                    <button type="submit" disabled={!newMessage.trim()} className="bg-[#00C47D] text-[#0d1b2a] p-2 rounded-full disabled:opacity-50 transition-opacity">
+                      <svg className="w-5 h-5 mx-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
