@@ -13,6 +13,7 @@ export default function HomePage() {
   const [nextBooking, setNextBooking] = useState(null)
   const [upcomingBookings, setUpcomingBookings] = useState([])
   const [historyBookings, setHistoryBookings] = useState([])
+  const [matches, setMatches] = useState([])
   const [aiSuggestion, setAiSuggestion] = useState(null)
   const [toast, setToast] = useState(null)
   const refreshTrigger = useAuthStore(s => s.refreshTrigger)
@@ -85,8 +86,10 @@ export default function HomePage() {
       }),
       Promise.all([
         client.get('/users/me/bookings').catch(() => ({ data: [] })),
-        client.get('/waitlist/me').catch(() => ({ data: [] }))
-      ]).then(([bkRes, wlRes]) => {
+        client.get('/waitlist/me').catch(() => ({ data: [] })),
+        client.get('/matches/me').catch(() => ({ data: [] }))
+      ]).then(([bkRes, wlRes, mtRes]) => {
+        // ... bookings logic ...
         const upBk = (bkRes.data || []).filter(b => b.status === 'confirmed' && new Date(b.endTime) > new Date())
           .map(b => ({ ...b, type: 'booking', sortTime: new Date(b.startTime).getTime() }))
         
@@ -107,6 +110,9 @@ export default function HomePage() {
           b => ['confirmed', 'recorded'].includes(b.status) && new Date(b.endTime) <= new Date()
         ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
         setHistoryBookings(history.slice(0, 5))
+
+        // Set matches for derived stats
+        setMatches(mtRes.data || [])
       }),
       client.get('/ai/slot-suggestion')
         .then(r => setAiSuggestion(r.data.slot))
@@ -114,9 +120,20 @@ export default function HomePage() {
     ])
   }, [refreshTrigger])
 
-  const winRate = stats
-    ? Math.round((stats.wins / (stats.wins + stats.losses)) * 100)
-    : null
+  // Derive stats from matches array for accuracy (sync with Profile page)
+  const derivedWins = matches.filter(m => {
+    const isTeam1 = m.team1Ids.includes(user?.id);
+    return (isTeam1 && m.winnerTeam === 1) || (!isTeam1 && m.winnerTeam === 2);
+  }).length;
+
+  const derivedLosses = matches.filter(m => {
+    const isTeam1 = m.team1Ids.includes(user?.id);
+    const hasWinner = m.winnerTeam === 1 || m.winnerTeam === 2;
+    return hasWinner && ((isTeam1 && m.winnerTeam === 2) || (!isTeam1 && m.winnerTeam === 1));
+  }).length;
+
+  const totalGames = derivedWins + derivedLosses;
+  const winRate = totalGames > 0 ? Math.round((derivedWins / totalGames) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -154,8 +171,8 @@ export default function HomePage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3 px-4">
         {[
-          { label: 'Win rate', value: winRate !== null && !isNaN(winRate) ? `${winRate}%` : '—', green: true },
-          { label: 'Games', value: stats ? stats.wins + stats.losses : '—' },
+          { label: 'Win rate', value: totalGames > 0 ? `${winRate}%` : '—', green: true },
+          { label: 'Games', value: matches.length > 0 ? matches.length : (stats ? stats.wins + stats.losses : '—') },
           { label: 'Loyalty pts', value: stats ? (stats.loyaltyTotal ?? 0).toLocaleString() : '—' },
         ].map(s => (
           <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-3 text-center">
