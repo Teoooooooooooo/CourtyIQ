@@ -1,5 +1,7 @@
 # CourtIQ — Padel Court Booking Platform
 
+🏆 **Winner of the SpringIt Hackathon**
+
 CourtIQ is a smart padel court booking platform with AI-powered partner matching, dynamic pricing, social features, and Stripe payments.
 
 ## Quick Start
@@ -64,5 +66,5 @@ http://localhost:3001/api/v1
 
 ## Tech Stack
 
-- **Backend:** Express 5, Prisma, PostgreSQL 16, Stripe, OpenAI
-- **Frontend:** React 18 (Vite), Tailwind CSS, Zustand, React Router, Leaflet
+- **Backend:** Express 5, Prisma, PostgreSQL 16, Stripe, OpenAI, Jest
+- **Frontend:** React 19 (Vite 8), Tailwind CSS 4, Zustand 5, React Router 7, Leaflet
